@@ -595,7 +595,7 @@ function drawEmpRows(){
 }
 
 /* ============ MODALS: ASSET ============ */
-function openAsset(id,preAssign){
+function openAsset(id,preAssign){const rnd=Math.random().toString(36).slice(2,8);
   const a=id?state.assets.find(x=>x.id===id):{id:'',type:'',brand:'',model:'',serial:'',condition:'New',status:preAssign?'In Use':'In Stock',assignedTo:preAssign||'',site:state.config.sites[0]||'',warrantyExpiry:'',supplier:'',notes:''};
   const dd=(arr,val,onch)=>arr.map(o=>`<option ${o===val?'selected':''}>${esc(o)}</option>`).join('');
   const empOpts=['',...state.employees.map(e=>e.name)];
@@ -603,11 +603,11 @@ function openAsset(id,preAssign){
     <div class="modal-h"><h3>${id?'Edit asset':'Add asset'}</h3><button class="btn-ghost" onclick="closeModal()">✕</button></div>
     <div class="modal-b">
       <div class="row2">
-        <div class="field"><label>Type</label><div class="combo"><input id="f_type" value="${esc(a.type)}" placeholder="Pick or type a new type" autocomplete="off" oninput="comboFilter('type')" onfocus="comboFilter('type')" onblur="comboBlur('type')"><div class="combo-list" id="combo_type"></div></div><span class="dd-hint">Pick from the list or type a new one</span></div>
-        <div class="field"><label>Brand</label><div class="combo"><input id="f_brand" value="${esc(a.brand)}" placeholder="Pick or type a new brand" autocomplete="off" oninput="comboFilter('brand');syncModels()" onfocus="comboFilter('brand')" onblur="comboBlur('brand')"><div class="combo-list" id="combo_brand"></div></div><span class="dd-hint">Pick from the list or type a new one</span></div>
+        <div class="field"><label>Type</label><div class="combo"><input id="f_type" name="f_type_${rnd}" autocomplete="new-password" autocorrect="off" autocapitalize="off" spellcheck="false" value="${esc(a.type)}" placeholder="Pick or type a new type" oninput="comboFilter('type')" onfocus="comboFilter('type')" onblur="comboBlur('type')"><div class="combo-list" id="combo_type"></div></div><span class="dd-hint">Pick from the list or type a new one</span></div>
+        <div class="field"><label>Brand</label><div class="combo"><input id="f_brand" name="f_brand_${rnd}" autocomplete="new-password" autocorrect="off" autocapitalize="off" spellcheck="false" value="${esc(a.brand)}" placeholder="Pick or type a new brand" oninput="comboFilter('brand');syncModels()" onfocus="comboFilter('brand')" onblur="comboBlur('brand')"><div class="combo-list" id="combo_brand"></div></div><span class="dd-hint">Pick from the list or type a new one</span></div>
       </div>
       <div class="row2">
-        <div class="field"><label>Model</label><div class="combo"><input id="f_model" value="${esc(a.model)}" placeholder="Pick or type a new model" autocomplete="off" oninput="comboFilter('model')" onfocus="comboFilter('model')" onblur="comboBlur('model')"><div class="combo-list" id="combo_model"></div></div><span class="dd-hint">Pick from the list or type a new one</span></div>
+        <div class="field"><label>Model</label><div class="combo"><input id="f_model" name="f_model_${rnd}" autocomplete="new-password" autocorrect="off" autocapitalize="off" spellcheck="false" value="${esc(a.model)}" placeholder="Pick or type a new model" oninput="comboFilter('model')" onfocus="comboFilter('model')" onblur="comboBlur('model')"><div class="combo-list" id="combo_model"></div></div><span class="dd-hint">Pick from the list or type a new one</span></div>
         <div class="field"><label>Serial (asset tag)</label><input id="f_serial" value="${esc(a.serial)}" placeholder="e.g. PF5E9CDC"></div>
       </div>
       <div class="row2">
