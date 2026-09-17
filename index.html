@@ -113,6 +113,18 @@ input,select{font-family:inherit;font-size:14px}
 .filt-note{display:inline-flex;align-items:center;gap:8px;background:var(--amber-bg);border:1px solid #eccc8a;color:var(--amber);font-weight:600;font-size:12.5px;padding:6px 11px;border-radius:8px}
 .filt-note button{border:none;background:none;color:var(--amber);font-weight:700;cursor:pointer;text-decoration:underline;padding:0}
 .viewonly-badge{display:inline-flex;align-items:center;gap:6px;background:var(--blue-bg);color:var(--blue);font-weight:600;font-size:12.5px;padding:6px 12px;border-radius:20px}
+.id-link{border:none;background:none;color:var(--accent);font-weight:600;cursor:pointer;font-family:inherit;font-size:13.5px;padding:0;text-decoration:underline;text-underline-offset:2px;font-variant-numeric:tabular-nums}
+.id-link:hover{color:var(--accent-ink)}
+.prof-head{display:flex;align-items:center;gap:14px;margin-bottom:18px}
+.prof-av{width:52px;height:52px;border-radius:50%;background:var(--accent);color:#fff;display:flex;align-items:center;justify-content:center;font-family:'Space Grotesk';font-weight:700;font-size:19px;flex-shrink:0}
+.prof-name{font-family:'Space Grotesk';font-weight:600;font-size:18px}
+.prof-role{color:var(--muted);font-size:13.5px;margin-top:1px}
+.prof-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px 20px;padding:16px;background:var(--surface2);border-radius:10px;margin-bottom:18px}
+.prof-grid>div{display:flex;flex-direction:column;gap:2px}
+.prof-lbl{font-size:11.5px;font-weight:600;color:var(--faint);text-transform:none}
+.prof-val{font-size:13.5px;color:var(--ink)}
+.prof-sec{font-family:'Space Grotesk';font-weight:600;font-size:14px;margin-bottom:10px;display:flex;align-items:center;gap:8px}
+.prof-count{background:var(--accent-dim);color:var(--accent-ink);font-family:'Inter';font-size:12px;font-weight:700;padding:1px 9px;border-radius:20px}
 
 /* ---------- Table ---------- */
 .toolbar{display:flex;gap:10px;align-items:center;margin-bottom:16px;flex-wrap:wrap}
@@ -550,7 +562,7 @@ let eSearch='',eSort={k:'name',dir:1};
 function renderEmps(c){
   let h=`<div class="toolbar"><div class="search"><span class="ic">⌕</span><input placeholder="Search name, role, email…" value="${esc(eSearch)}" oninput="eSearch=this.value;drawEmpRows()"></div></div>
   <div class="tbl-wrap"><div class="tbl-scroll"><table>
-    <thead><tr>${the('employeeId','ID')}${the('name','Name')}${the('role','Role')}${the('email','Email')}${the('site','Site')}<th>Assigned assets</th><th style="text-align:right">Actions</th></tr></thead>
+    <thead><tr>${the('employeeId','ID')}${the('name','Name')}${the('role','Role')}${the('email','Email')}${the('site','Site')}<th style="text-align:right">Actions</th></tr></thead>
     <tbody id="empBody"></tbody></table></div><div class="tbl-foot" id="empFoot"></div></div>`;
   c.innerHTML=h;drawEmpRows();
 }
@@ -561,13 +573,11 @@ function drawEmpRows(){
   if(q)r=r.filter(e=>[e.name,e.role,e.email,e.employeeId].some(v=>(v||'').toLowerCase().includes(q)));
   r.sort((a,b)=>{const x=(a[eSort.k]||'').toLowerCase(),y=(b[eSort.k]||'').toLowerCase();return x<y?-eSort.dir:x>y?eSort.dir:0;});
   const body=document.getElementById('empBody');if(!body)return;
-  if(!r.length){body.innerHTML=`<tr><td colspan="7"><div class="empty"><span class="ic">◉</span><b>No matching people</b></div></td></tr>`;}
+  if(!r.length){body.innerHTML=`<tr><td colspan="6"><div class="empty"><span class="ic">◉</span><b>No matching people</b></div></td></tr>`;}
   else body.innerHTML=r.map(e=>{
-    const assets=state.assets.filter(a=>a.assignedTo===e.name);
     return `<tr>
-      <td style="font-variant-numeric:tabular-nums;color:var(--muted)">${esc(e.employeeId)||'—'}</td>
+      <td><button class="id-link" onclick="viewEmp('${esc(e.name).replace(/'/g,"\\'")}')" title="View profile">${esc(e.employeeId)||'—'}</button></td>
       <td><b>${esc(e.name)}</b></td><td>${esc(e.role)}</td><td style="color:var(--muted)">${esc(e.email)}</td><td>${esc(e.site)}</td>
-      <td>${assets.length?assets.map(a=>esc(a.type)+' '+esc(a.model||a.brand)).join(', '):'<span class="unassigned">none</span>'}</td>
       <td class="actions">${canEdit()?`<button class="ic-btn" onclick="openEmp('${e.employeeId||''}','${esc(e.name).replace(/'/g,"\\'")}')">✎</button><button class="ic-btn del" onclick="delEmp('${esc(e.name).replace(/'/g,"\\'")}')">🗑</button>`:'<span style="color:var(--faint)">—</span>'}</td>
     </tr>`;}).join('');
   document.getElementById('empFoot').innerHTML=`<span>${r.length} of ${state.employees.length} people</span>`;
@@ -620,6 +630,38 @@ function saveAsset(id){if(!canEdit()){toast("View-only access — editing is res
 function delAsset(id){if(!canEdit()){toast("View-only access — editing is restricted","err");return;}const a=state.assets.find(x=>x.id===id);if(!confirm('Delete this '+(a.type||'asset')+(a.serial?' ('+a.serial+')':'')+'?'))return;state.assets=state.assets.filter(x=>x.id!==id);saveState();toast('Asset deleted','ok');render();}
 
 /* ============ MODALS: EMPLOYEE ============ */
+function viewEmp(name){
+  const e=state.employees.find(x=>x.name===name);if(!e)return;
+  const assets=state.assets.filter(a=>a.assignedTo===name);
+  const rows=assets.length?assets.map(a=>`<tr>
+      <td>${esc(a.type)}</td><td>${esc(a.brand)} ${esc(a.model)}</td>
+      <td style="color:var(--muted)">${esc(a.serial)||'—'}</td><td>${condPill(a.condition)}</td><td>${statusPill(a.status)}</td>
+    </tr>`).join(''):`<tr><td colspan="5" style="text-align:center;color:var(--faint);padding:18px">No assets assigned</td></tr>`;
+  const initials=(e.name||'?').split(' ').map(w=>w[0]).slice(0,2).join('').toUpperCase();
+  const m=`<div class="modal-bg" onclick="if(event.target===this)closeModal()"><div class="modal" style="max-width:640px">
+    <div class="modal-h"><h3>Employee profile</h3><button class="btn-ghost" onclick="closeModal()">✕</button></div>
+    <div class="modal-b">
+      <div class="prof-head">
+        <div class="prof-av">${esc(initials)}</div>
+        <div><div class="prof-name">${esc(e.name)}</div><div class="prof-role">${esc(e.role)}</div></div>
+      </div>
+      <div class="prof-grid">
+        <div><span class="prof-lbl">Employee ID</span><span class="prof-val">${esc(e.employeeId)||'—'}</span></div>
+        <div><span class="prof-lbl">Email</span><span class="prof-val">${esc(e.email)||'—'}</span></div>
+        <div><span class="prof-lbl">Site</span><span class="prof-val">${esc(e.site)||'—'}</span></div>
+        <div><span class="prof-lbl">Status</span><span class="prof-val">${esc(e.status)||'Active'}</span></div>
+        ${e.department?`<div><span class="prof-lbl">Department</span><span class="prof-val">${esc(e.department)}</span></div>`:''}
+        ${e.startDate?`<div><span class="prof-lbl">Start date</span><span class="prof-val">${esc(e.startDate)}</span></div>`:''}
+      </div>
+      <div class="prof-sec">Assigned assets <span class="prof-count">${assets.length}</span></div>
+      <div class="tbl-wrap" style="box-shadow:none"><table>
+        <thead><tr><th>Type</th><th>Brand / model</th><th>Serial</th><th>Condition</th><th>Status</th></tr></thead>
+        <tbody>${rows}</tbody></table></div>
+    </div>
+    <div class="modal-f">${canEdit()?`<button class="btn" onclick="closeModal();openEmp('${e.employeeId||''}','${esc(e.name).replace(/'/g,"\\'")}')">Edit details</button>`:''}<button class="btn btn-primary" onclick="closeModal()">Close</button></div>
+  </div></div>`;
+  mount(m);
+}
 function openEmp(eid,name){
   const e=name?state.employees.find(x=>x.name===name):{employeeId:'',name:'',role:'',email:'',site:state.config.sites[0]||'',department:'',startDate:'',status:'Active'};
   const dd=(arr,val)=>arr.map(o=>`<option ${o===val?'selected':''}>${esc(o)}</option>`).join('');
