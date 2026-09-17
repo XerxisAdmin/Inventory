@@ -115,6 +115,10 @@ input,select{font-family:inherit;font-size:14px}
 .viewonly-badge{display:inline-flex;align-items:center;gap:6px;background:var(--blue-bg);color:var(--blue);font-weight:600;font-size:12.5px;padding:6px 12px;border-radius:20px}
 .id-link{border:none;background:none;color:var(--accent);font-weight:600;cursor:pointer;font-family:inherit;font-size:13.5px;padding:0;text-decoration:underline;text-underline-offset:2px;font-variant-numeric:tabular-nums}
 .id-link:hover{color:var(--accent-ink)}
+.row-off{background:var(--red-bg)!important}
+.row-off:hover{background:#f7ddd9!important}
+.row-off td b{color:var(--red)}
+.off-tag{display:inline-block;margin-left:8px;background:var(--red);color:#fff;font-size:10.5px;font-weight:700;padding:1px 7px;border-radius:20px;vertical-align:middle}
 .prof-head{display:flex;align-items:center;gap:14px;margin-bottom:18px}
 .prof-av{width:52px;height:52px;border-radius:50%;background:var(--accent);color:#fff;display:flex;align-items:center;justify-content:center;font-family:'Space Grotesk';font-weight:700;font-size:19px;flex-shrink:0}
 .prof-name{font-family:'Space Grotesk';font-weight:600;font-size:18px}
@@ -575,9 +579,10 @@ function drawEmpRows(){
   const body=document.getElementById('empBody');if(!body)return;
   if(!r.length){body.innerHTML=`<tr><td colspan="6"><div class="empty"><span class="ic">◉</span><b>No matching people</b></div></td></tr>`;}
   else body.innerHTML=r.map(e=>{
-    return `<tr>
+    const off=(e.status||'').toLowerCase()==='offboarded';
+    return `<tr class="${off?'row-off':''}">
       <td><button class="id-link" onclick="viewEmp('${esc(e.name).replace(/'/g,"\\'")}')" title="View profile">${esc(e.employeeId)||'—'}</button></td>
-      <td><b>${esc(e.name)}</b></td><td>${esc(e.role)}</td><td style="color:var(--muted)">${esc(e.email)}</td><td>${esc(e.site)}</td>
+      <td><b>${esc(e.name)}</b>${off?'<span class="off-tag">Offboarded</span>':''}</td><td>${esc(e.role)}</td><td style="color:var(--muted)">${esc(e.email)}</td><td>${esc(e.site)}</td>
       <td class="actions">${canEdit()?`<button class="ic-btn" onclick="openEmp('${e.employeeId||''}','${esc(e.name).replace(/'/g,"\\'")}')">✎</button><button class="ic-btn del" onclick="delEmp('${esc(e.name).replace(/'/g,"\\'")}')">🗑</button>`:'<span style="color:var(--faint)">—</span>'}</td>
     </tr>`;}).join('');
   document.getElementById('empFoot').innerHTML=`<span>${r.length} of ${state.employees.length} people</span>`;
