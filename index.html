@@ -181,6 +181,7 @@ td.actions{white-space:nowrap;text-align:right}
 .row2{display:grid;grid-template-columns:1fr 1fr;gap:13px}
 .modal-f{padding:16px 22px;border-top:1px solid var(--border);display:flex;justify-content:flex-end;gap:10px;position:sticky;bottom:0;background:var(--surface)}
 .dd-add{font-size:11.5px;color:var(--accent);font-weight:600;background:none;border:none;padding:2px 0;margin-top:4px}
+.dd-hint{display:block;font-size:11px;color:var(--faint);margin-top:4px}
 
 /* toast */
 #toasts{position:fixed;bottom:20px;right:20px;z-index:400;display:flex;flex-direction:column;gap:8px}
@@ -597,11 +598,11 @@ function openAsset(id,preAssign){
     <div class="modal-h"><h3>${id?'Edit asset':'Add asset'}</h3><button class="btn-ghost" onclick="closeModal()">✕</button></div>
     <div class="modal-b">
       <div class="row2">
-        <div class="field"><label>Type</label><select id="f_type">${dd(state.config.types,a.type)}</select><button class="dd-add" onclick="addOpt('types','f_type')">+ Add type</button></div>
-        <div class="field"><label>Brand</label><select id="f_brand" onchange="syncModels()">${dd(state.config.brands,a.brand)}</select><button class="dd-add" onclick="addOpt('brands','f_brand')">+ Add brand</button></div>
+        <div class="field"><label>Type</label><input id="f_type" list="dl_types" value="${esc(a.type)}" placeholder="Pick or type a new type" autocomplete="off"><datalist id="dl_types">${state.config.types.map(o=>`<option value="${esc(o)}">`).join('')}</datalist><span class="dd-hint">Pick from the list or type a new one</span></div>
+        <div class="field"><label>Brand</label><input id="f_brand" list="dl_brands" value="${esc(a.brand)}" placeholder="Pick or type a new brand" autocomplete="off" oninput="syncModels()"><datalist id="dl_brands">${state.config.brands.map(o=>`<option value="${esc(o)}">`).join('')}</datalist><span class="dd-hint">Pick from the list or type a new one</span></div>
       </div>
       <div class="row2">
-        <div class="field"><label>Model</label><select id="f_model">${dd(state.config.models[a.brand]||[],a.model)}</select><button class="dd-add" onclick="addModel()">+ Add model</button></div>
+        <div class="field"><label>Model</label><input id="f_model" list="dl_models" value="${esc(a.model)}" placeholder="Pick or type a new model" autocomplete="off"><datalist id="dl_models">${(state.config.models[a.brand]||[]).map(o=>`<option value="${esc(o)}">`).join('')}</datalist><span class="dd-hint">Pick from the list or type a new one</span></div>
         <div class="field"><label>Serial (asset tag)</label><input id="f_serial" value="${esc(a.serial)}" placeholder="e.g. PF5E9CDC"></div>
       </div>
       <div class="row2">
@@ -622,12 +623,17 @@ function openAsset(id,preAssign){
   </div></div>`;
   mount(m);
 }
-function syncModels(){const b=document.getElementById('f_brand').value;const sel=document.getElementById('f_model');sel.innerHTML=(state.config.models[b]||[]).map(o=>`<option>${esc(o)}</option>`).join('');}
+function syncModels(){const b=(document.getElementById('f_brand').value||'').trim();const dl=document.getElementById('dl_models');if(dl)dl.innerHTML=(state.config.models[b]||[]).map(o=>`<option value="${esc(o)}">`).join('');}
 function addModel(){const b=document.getElementById('f_brand').value;const v=prompt('New model for '+b+':');if(!v)return;state.config.models[b]=state.config.models[b]||[];if(!state.config.models[b].includes(v))state.config.models[b].push(v);saveState();syncModels();document.getElementById('f_model').value=v;}
 function addOpt(key,fid){const v=prompt('Add new '+key.slice(0,-1)+':');if(!v)return;if(!state.config[key].includes(v)){state.config[key].push(v);state.config[key].sort();saveState();}const sel=document.getElementById(fid);sel.innerHTML=state.config[key].map(o=>`<option ${o===v?'selected':''}>${esc(o)}</option>`).join('');}
 function saveAsset(id){if(!canEdit()){toast("View-only access — editing is restricted","err");return;}
-  const g=k=>{const el=document.getElementById('f_'+k);let v=el?el.value:'';if(v==='— Unassigned —')v='';return v;};
-  const rec={type:g('type'),brand:g('brand'),model:g('model'),serial:g('serial').trim(),condition:g('condition'),status:g('status'),assignedTo:g('assignedTo'),site:g('site'),warrantyExpiry:g('warrantyExpiry'),supplier:g('supplier'),notes:g('notes')};
+  const g=k=>{const el=document.getElementById('f_'+k);let v=el?el.value:'';if(v==='— Unassigned —')v='';return v.trim();};
+  const rec={type:g('type'),brand:g('brand'),model:g('model'),serial:g('serial'),condition:g('condition'),status:g('status'),assignedTo:g('assignedTo'),site:g('site'),warrantyExpiry:g('warrantyExpiry'),supplier:g('supplier'),notes:g('notes')};
+  if(!rec.type){toast('Type is required','err');return;}
+  // Register any newly-typed type/brand/model so they appear in the lists next time
+  if(rec.type&&!state.config.types.includes(rec.type)){state.config.types.push(rec.type);state.config.types.sort();}
+  if(rec.brand&&!state.config.brands.includes(rec.brand)){state.config.brands.push(rec.brand);state.config.brands.sort();}
+  if(rec.brand&&rec.model){state.config.models[rec.brand]=state.config.models[rec.brand]||[];if(!state.config.models[rec.brand].includes(rec.model)){state.config.models[rec.brand].push(rec.model);state.config.models[rec.brand].sort();}}
   if(id){
     const existing=state.assets.find(x=>x.id===id);
     // Part A: warn if the serial is being changed on an assigned device — likely a swap, not an edit
