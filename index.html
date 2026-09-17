@@ -106,6 +106,12 @@ input,select{font-family:inherit;font-size:14px}
 .flag-item .ic{color:var(--amber);font-size:15px;flex-shrink:0;margin-top:1px}
 .flag-item b{font-size:13.5px}
 .flag-item p{font-size:12.5px;color:var(--muted);margin-top:2px}
+.flag-item[role=button]{cursor:pointer;transition:background .12s,border-color .12s}
+.flag-item[role=button]:hover{background:#f8e9c8;border-color:var(--amber)}
+.flag-item[role=button]:focus{outline:2px solid var(--amber);outline-offset:1px}
+.flag-go{align-self:center;color:var(--amber);font-weight:700;font-size:12.5px;white-space:nowrap;flex-shrink:0}
+.filt-note{display:inline-flex;align-items:center;gap:8px;background:var(--amber-bg);border:1px solid #eccc8a;color:var(--amber);font-weight:600;font-size:12.5px;padding:6px 11px;border-radius:8px}
+.filt-note button{border:none;background:none;color:var(--amber);font-weight:700;cursor:pointer;text-decoration:underline;padding:0}
 
 /* ---------- Table ---------- */
 .toolbar{display:flex;gap:10px;align-items:center;margin-bottom:16px;flex-wrap:wrap}
@@ -325,7 +331,7 @@ function renderDash(c){
   if(dups.length){
     dups.forEach(s=>{
       const items=A.filter(a=>a.serial===s);
-      h+=`<div class="flag-item"><span class="ic">⚠</span><div><b>Duplicate serial ${esc(s)}</b><p>Used on ${items.length} assets: ${items.map(x=>esc(x.assignedTo||'unassigned')).join(', ')}. Verify against records and correct.</p></div></div>`;
+      h+=`<div class="flag-item" role="button" tabindex="0" onclick="reviewSerial('${esc(s)}')" onkeydown="if(event.key==='Enter')reviewSerial('${esc(s)}')" title="Click to view these assets"><span class="ic">⚠</span><div style="flex:1"><b>Duplicate serial ${esc(s)}</b><p>Used on ${items.length} assets: ${items.map(x=>esc(x.assignedTo||'unassigned')).join(', ')}. Verify against records and correct.</p></div><span class="flag-go">View →</span></div>`;
     });
   } else {
     h+=`<div class="empty" style="padding:24px"><span class="ic">✓</span><b>No issues found</b>Every serial is unique.</div>`;
@@ -341,10 +347,14 @@ function bars(obj,total){
 }
 
 /* ============ ASSETS ============ */
-let aSearch='',aFilt={type:'',status:'',site:''},aSort={k:'type',dir:1};
+let aSearch='',aFilt={type:'',status:'',site:''},aSort={k:'type',dir:1},aSerial='';
+function reviewSerial(s){aSerial=s;aSearch='';aFilt={type:'',status:'',site:''};nav('assets');}
+function clearSerial(){aSerial='';renderAssets(document.getElementById('content'));}
 function renderAssets(c){
   const types=['',...state.config.types],statuses=['',...STATUSES],sites=['',...state.config.sites];
-  let h=`<div class="toolbar">
+  let h='';
+  if(aSerial){h+=`<div style="margin-bottom:14px"><span class="filt-note">⚠ Showing flagged assets with serial ${esc(aSerial)} <button onclick="clearSerial()">Clear</button></span></div>`;}
+  h+=`<div class="toolbar">
     <div class="search"><span class="ic">⌕</span><input placeholder="Search serial, model, person…" value="${esc(aSearch)}" oninput="aSearch=this.value;drawAssetRows()"></div>
     <select class="filt" onchange="aFilt.type=this.value;drawAssetRows()">${types.map(t=>`<option ${t===aFilt.type?'selected':''}>${t||'All types'}</option>`).join('')}</select>
     <select class="filt" onchange="aFilt.status=this.value;drawAssetRows()">${statuses.map(t=>`<option ${t===aFilt.status?'selected':''}>${t||'All statuses'}</option>`).join('')}</select>
@@ -363,6 +373,7 @@ function th(k,label){const on=aSort.k===k;return `<th onclick="sortAssets('${k}'
 function sortAssets(k){if(aSort.k===k)aSort.dir*=-1;else{aSort.k=k;aSort.dir=1;}renderAssets(document.getElementById('content'));}
 function filteredAssets(){
   let r=state.assets.slice();
+  if(aSerial)r=r.filter(a=>a.serial===aSerial);
   const q=aSearch.trim().toLowerCase();
   if(q)r=r.filter(a=>[a.type,a.brand,a.model,a.serial,a.assignedTo,a.site,a.notes].some(v=>(v||'').toLowerCase().includes(q)));
   if(aFilt.type)r=r.filter(a=>a.type===aFilt.type);
