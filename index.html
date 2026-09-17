@@ -554,7 +554,7 @@ function drawAssetRows(){
       <td>${condPill(a.condition)}</td><td>${statusPill(a.status)}</td>
       <td>${a.assignedTo?esc(a.assignedTo):'<span class="unassigned">Unassigned</span>'}</td>
       <td>${esc(a.site)}</td>
-      <td class="actions">${canEdit()?`<button class="ic-btn" title="Edit" onclick="openAsset('${a.id}')">✎</button><button class="ic-btn del" title="Delete" onclick="delAsset('${a.id}')">🗑</button>`:'<span style="color:var(--faint)">—</span>'}</td>
+      <td class="actions">${canEdit()?`${a.assignedTo?`<button class="ic-btn" title="Swap this device for another (returns this one to stock)" onclick="swapAsset('${a.id}')">⇄</button>`:''}<button class="ic-btn" title="Edit" onclick="openAsset('${a.id}')">✎</button><button class="ic-btn del" title="Delete" onclick="delAsset('${a.id}')">🗑</button>`:'<span style="color:var(--faint)">—</span>'}</td>
     </tr>`;}).join('');
   document.getElementById('assetFoot').innerHTML=`<span>${rows.length} of ${state.assets.length} assets</span>`;
 }
@@ -672,6 +672,16 @@ function unassignDevice(id,name){
   const a=state.assets.find(x=>x.id===id);if(!a)return;
   if(!confirm('Unassign this '+(a.type||'device')+' from '+name+'? It will return to stock.'))return;
   a.assignedTo='';a.status='In Stock';saveState();toast('Device unassigned','ok');viewEmp(name);
+}
+function swapAsset(id){
+  if(!canEdit())return;
+  const a=state.assets.find(x=>x.id===id);if(!a)return;
+  const person=a.assignedTo;
+  if(!person){toast('This device isn\'t assigned to anyone','err');return;}
+  if(!confirm('Swap out this '+(a.type||'device')+(a.serial?' ('+a.serial+')':'')+' from '+person+'?\n\nThe old device returns to stock (kept in inventory), and you\'ll pick or add the replacement for '+person+' next.'))return;
+  a.assignedTo='';a.status='In Stock';saveState();
+  toast('Old device returned to stock — now choose '+person+'\'s replacement','ok');
+  assignDeviceMenu(person);
 }
 function swapDevice(id,name){
   if(!canEdit())return;
