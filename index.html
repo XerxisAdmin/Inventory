@@ -628,7 +628,15 @@ function addOpt(key,fid){const v=prompt('Add new '+key.slice(0,-1)+':');if(!v)re
 function saveAsset(id){if(!canEdit()){toast("View-only access — editing is restricted","err");return;}
   const g=k=>{const el=document.getElementById('f_'+k);let v=el?el.value:'';if(v==='— Unassigned —')v='';return v;};
   const rec={type:g('type'),brand:g('brand'),model:g('model'),serial:g('serial').trim(),condition:g('condition'),status:g('status'),assignedTo:g('assignedTo'),site:g('site'),warrantyExpiry:g('warrantyExpiry'),supplier:g('supplier'),notes:g('notes')};
-  if(id){Object.assign(state.assets.find(x=>x.id===id),rec);toast('Asset updated','ok');}
+  if(id){
+    const existing=state.assets.find(x=>x.id===id);
+    // Part A: warn if the serial is being changed on an assigned device — likely a swap, not an edit
+    if(existing&&existing.serial&&rec.serial&&existing.serial!==rec.serial){
+      const who=existing.assignedTo?(' assigned to '+existing.assignedTo):'';
+      if(!confirm('You are changing the serial from '+existing.serial+' to '+rec.serial+'.\n\nThis REPLACES the existing asset'+who+' — the old device ('+existing.serial+') will no longer exist in inventory.\n\nIf this person is swapping to a different laptop, cancel and use "Swap device" on their profile instead, so the old one returns to stock.\n\nContinue replacing this record anyway?'))return;
+    }
+    Object.assign(existing,rec);toast('Asset updated','ok');
+  }
   else{rec.id=genId();state.assets.push(rec);toast('Asset added','ok');}
   saveState();closeModal();render();
 }
@@ -665,13 +673,21 @@ function unassignDevice(id,name){
   if(!confirm('Unassign this '+(a.type||'device')+' from '+name+'? It will return to stock.'))return;
   a.assignedTo='';a.status='In Stock';saveState();toast('Device unassigned','ok');viewEmp(name);
 }
+function swapDevice(id,name){
+  if(!canEdit())return;
+  const a=state.assets.find(x=>x.id===id);if(!a)return;
+  if(!confirm('Swap out this '+(a.type||'device')+(a.serial?' ('+a.serial+')':'')+' from '+name+'?\n\nThe old device returns to stock (kept in inventory), and you\'ll pick or add the replacement next.'))return;
+  a.assignedTo='';a.status='In Stock';saveState();
+  toast('Old device returned to stock — now choose the replacement','ok');
+  assignDeviceMenu(name); // pick or add the new device
+}
 function viewEmp(name){
   const e=state.employees.find(x=>x.name===name);if(!e)return;
   const assets=state.assets.filter(a=>a.assignedTo===name);
   const rows=assets.length?assets.map(a=>`<tr>
       <td>${esc(a.type)}</td><td>${esc(a.brand)} ${esc(a.model)}</td>
       <td style="color:var(--muted)">${esc(a.serial)||'—'}</td><td>${condPill(a.condition)}</td><td>${statusPill(a.status)}</td>
-      ${canEdit()?`<td class="actions"><button class="ic-btn del" title="Unassign" onclick="unassignDevice('${a.id}','${esc(name).replace(/'/g,"\\'")}')">✕</button></td>`:''}
+      ${canEdit()?`<td class="actions"><button class="ic-btn" title="Swap for another device" onclick="swapDevice('${a.id}','${esc(name).replace(/'/g,"\\'")}')">⇄</button><button class="ic-btn del" title="Unassign (return to stock)" onclick="unassignDevice('${a.id}','${esc(name).replace(/'/g,"\\'")}')">✕</button></td>`:''}
     </tr>`).join(''):`<tr><td colspan="${canEdit()?6:5}" style="text-align:center;color:var(--faint);padding:18px">No assets assigned</td></tr>`;
   const initials=(e.name||'?').split(' ').map(w=>w[0]).slice(0,2).join('').toUpperCase();
   const m=`<div class="modal-bg" onclick="if(event.target===this)closeModal()"><div class="modal" style="max-width:640px">
