@@ -584,8 +584,8 @@ function drawEmpRows(){
 }
 
 /* ============ MODALS: ASSET ============ */
-function openAsset(id){
-  const a=id?state.assets.find(x=>x.id===id):{id:'',type:'',brand:'',model:'',serial:'',condition:'New',status:'In Stock',assignedTo:'',site:state.config.sites[0]||'',warrantyExpiry:'',supplier:'',notes:''};
+function openAsset(id,preAssign){
+  const a=id?state.assets.find(x=>x.id===id):{id:'',type:'',brand:'',model:'',serial:'',condition:'New',status:preAssign?'In Use':'In Stock',assignedTo:preAssign||'',site:state.config.sites[0]||'',warrantyExpiry:'',supplier:'',notes:''};
   const dd=(arr,val,onch)=>arr.map(o=>`<option ${o===val?'selected':''}>${esc(o)}</option>`).join('');
   const empOpts=['',...state.employees.map(e=>e.name)];
   const m=`<div class="modal-bg" onclick="if(event.target===this)closeModal()"><div class="modal">
@@ -630,13 +630,44 @@ function saveAsset(id){if(!canEdit()){toast("View-only access — editing is res
 function delAsset(id){if(!canEdit()){toast("View-only access — editing is restricted","err");return;}const a=state.assets.find(x=>x.id===id);if(!confirm('Delete this '+(a.type||'asset')+(a.serial?' ('+a.serial+')':'')+'?'))return;state.assets=state.assets.filter(x=>x.id!==id);saveState();toast('Asset deleted','ok');render();}
 
 /* ============ MODALS: EMPLOYEE ============ */
+function assignDeviceMenu(name){
+  if(!canEdit())return;
+  const free=state.assets.filter(a=>!a.assignedTo);
+  const opts=free.map(a=>`<option value="${a.id}">${esc(a.type)} — ${esc(a.brand)} ${esc(a.model)} ${a.serial?'('+esc(a.serial)+')':''}</option>`).join('');
+  const m=`<div class="modal-bg" onclick="if(event.target===this)closeModal()"><div class="modal" style="max-width:480px">
+    <div class="modal-h"><h3>Assign a device to ${esc(name)}</h3><button class="btn-ghost" onclick="closeModal()">✕</button></div>
+    <div class="modal-b">
+      <div class="field"><label>Assign an existing unassigned device</label>
+        ${free.length?`<select id="assignPick">${opts}</select>`:'<p style="color:var(--muted);font-size:13px">No unassigned devices in stock. Add a new one below.</p>'}
+      </div>
+      ${free.length?`<button class="btn btn-primary" style="width:100%;margin-bottom:8px" onclick="doAssignExisting('${esc(name).replace(/'/g,"\\'")}')">Assign selected device</button>`:''}
+      <div style="text-align:center;color:var(--faint);font-size:12px;margin:10px 0">or</div>
+      <button class="btn" style="width:100%" onclick="closeModal();openAsset('','${esc(name).replace(/'/g,"\\'")}')">+ Add a brand-new device for ${esc(name)}</button>
+    </div>
+  </div></div>`;
+  mount(m);
+}
+function doAssignExisting(name){
+  if(!canEdit())return;
+  const id=document.getElementById('assignPick').value;
+  const a=state.assets.find(x=>x.id===id);if(!a)return;
+  a.assignedTo=name;if(a.status==='In Stock')a.status='In Use';
+  saveState();toast('Device assigned to '+name,'ok');closeModal();viewEmp(name);
+}
+function unassignDevice(id,name){
+  if(!canEdit())return;
+  const a=state.assets.find(x=>x.id===id);if(!a)return;
+  if(!confirm('Unassign this '+(a.type||'device')+' from '+name+'? It will return to stock.'))return;
+  a.assignedTo='';a.status='In Stock';saveState();toast('Device unassigned','ok');viewEmp(name);
+}
 function viewEmp(name){
   const e=state.employees.find(x=>x.name===name);if(!e)return;
   const assets=state.assets.filter(a=>a.assignedTo===name);
   const rows=assets.length?assets.map(a=>`<tr>
       <td>${esc(a.type)}</td><td>${esc(a.brand)} ${esc(a.model)}</td>
       <td style="color:var(--muted)">${esc(a.serial)||'—'}</td><td>${condPill(a.condition)}</td><td>${statusPill(a.status)}</td>
-    </tr>`).join(''):`<tr><td colspan="5" style="text-align:center;color:var(--faint);padding:18px">No assets assigned</td></tr>`;
+      ${canEdit()?`<td class="actions"><button class="ic-btn del" title="Unassign" onclick="unassignDevice('${a.id}','${esc(name).replace(/'/g,"\\'")}')">✕</button></td>`:''}
+    </tr>`).join(''):`<tr><td colspan="${canEdit()?6:5}" style="text-align:center;color:var(--faint);padding:18px">No assets assigned</td></tr>`;
   const initials=(e.name||'?').split(' ').map(w=>w[0]).slice(0,2).join('').toUpperCase();
   const m=`<div class="modal-bg" onclick="if(event.target===this)closeModal()"><div class="modal" style="max-width:640px">
     <div class="modal-h"><h3>Employee profile</h3><button class="btn-ghost" onclick="closeModal()">✕</button></div>
@@ -653,9 +684,9 @@ function viewEmp(name){
         ${e.department?`<div><span class="prof-lbl">Department</span><span class="prof-val">${esc(e.department)}</span></div>`:''}
         ${e.startDate?`<div><span class="prof-lbl">Start date</span><span class="prof-val">${esc(e.startDate)}</span></div>`:''}
       </div>
-      <div class="prof-sec">Assigned assets <span class="prof-count">${assets.length}</span></div>
+      <div class="prof-sec">Assigned assets <span class="prof-count">${assets.length}</span>${canEdit()?`<button class="btn btn-sm btn-primary" style="margin-left:auto" onclick="assignDeviceMenu('${esc(e.name).replace(/'/g,"\\'")}')">+ Assign device</button>`:''}</div>
       <div class="tbl-wrap" style="box-shadow:none"><table>
-        <thead><tr><th>Type</th><th>Brand / model</th><th>Serial</th><th>Condition</th><th>Status</th></tr></thead>
+        <thead><tr><th>Type</th><th>Brand / model</th><th>Serial</th><th>Condition</th><th>Status</th>${canEdit()?'<th></th>':''}</tr></thead>
         <tbody>${rows}</tbody></table></div>
     </div>
     <div class="modal-f">${canEdit()?`<button class="btn" onclick="closeModal();openEmp('${e.employeeId||''}','${esc(e.name).replace(/'/g,"\\'")}')">Edit details</button>`:''}<button class="btn btn-primary" onclick="closeModal()">Close</button></div>
