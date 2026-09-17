@@ -603,11 +603,11 @@ function openAsset(id,preAssign){const rnd=Math.random().toString(36).slice(2,8)
     <div class="modal-h"><h3>${id?'Edit asset':'Add asset'}</h3><button class="btn-ghost" onclick="closeModal()">✕</button></div>
     <div class="modal-b">
       <div class="row2">
-        <div class="field"><label>Type</label><div class="combo"><input id="f_type" name="f_type_${rnd}" autocomplete="new-password" autocorrect="off" autocapitalize="off" spellcheck="false" value="${esc(a.type)}" placeholder="Pick or type a new type" oninput="comboFilter('type')" onfocus="comboFilter('type')" onblur="comboBlur('type')"><div class="combo-list" id="combo_type"></div></div><span class="dd-hint">Pick from the list or type a new one</span></div>
-        <div class="field"><label>Brand</label><div class="combo"><input id="f_brand" name="f_brand_${rnd}" autocomplete="new-password" autocorrect="off" autocapitalize="off" spellcheck="false" value="${esc(a.brand)}" placeholder="Pick or type a new brand" oninput="comboFilter('brand');syncModels()" onfocus="comboFilter('brand')" onblur="comboBlur('brand')"><div class="combo-list" id="combo_brand"></div></div><span class="dd-hint">Pick from the list or type a new one</span></div>
+        <div class="field"><label>Type</label><div class="combo"><input id="f_type" name="f_type_${rnd}" autocomplete="new-password" autocorrect="off" autocapitalize="off" spellcheck="false" value="${esc(a.type)}" placeholder="Pick or type a new type" oninput="comboFilter('type')" onfocus="comboOpenAll('type')" onblur="comboBlur('type')"><div class="combo-list" id="combo_type"></div></div><span class="dd-hint">Pick from the list or type a new one</span></div>
+        <div class="field"><label>Brand</label><div class="combo"><input id="f_brand" name="f_brand_${rnd}" autocomplete="new-password" autocorrect="off" autocapitalize="off" spellcheck="false" value="${esc(a.brand)}" placeholder="Pick or type a new brand" oninput="comboFilter('brand');syncModels()" onfocus="comboOpenAll('brand')" onblur="comboBlur('brand')"><div class="combo-list" id="combo_brand"></div></div><span class="dd-hint">Pick from the list or type a new one</span></div>
       </div>
       <div class="row2">
-        <div class="field"><label>Model</label><div class="combo"><input id="f_model" name="f_model_${rnd}" autocomplete="new-password" autocorrect="off" autocapitalize="off" spellcheck="false" value="${esc(a.model)}" placeholder="Pick or type a new model" oninput="comboFilter('model')" onfocus="comboFilter('model')" onblur="comboBlur('model')"><div class="combo-list" id="combo_model"></div></div><span class="dd-hint">Pick from the list or type a new one</span></div>
+        <div class="field"><label>Model</label><div class="combo"><input id="f_model" name="f_model_${rnd}" autocomplete="new-password" autocorrect="off" autocapitalize="off" spellcheck="false" value="${esc(a.model)}" placeholder="Pick or type a new model" oninput="comboFilter('model')" onfocus="comboOpenAll('model')" onblur="comboBlur('model')"><div class="combo-list" id="combo_model"></div></div><span class="dd-hint">Pick from the list or type a new one</span></div>
         <div class="field"><label>Serial (asset tag)</label><input id="f_serial" value="${esc(a.serial)}" placeholder="e.g. PF5E9CDC"></div>
       </div>
       <div class="row2">
@@ -634,16 +634,20 @@ function comboSource(which){
   if(which==='model'){const b=(document.getElementById('f_brand').value||'').trim();return state.config.models[b]||[];}
   return [];
 }
-function comboFilter(which){
-  const inp=document.getElementById('f_'+which);const box=document.getElementById('combo_'+which);if(!inp||!box)return;
-  const q=(inp.value||'').trim().toLowerCase();
-  const all=comboSource(which);
-  const matches=all.filter(o=>o.toLowerCase().includes(q));
-  // show all when empty/focused; filtered when typing
-  const list=(q?matches:all);
+function comboRender(which,list){
+  const box=document.getElementById('combo_'+which);if(!box)return;
   if(!list.length){box.classList.remove('open');box.innerHTML='';return;}
   box.innerHTML=list.map(o=>`<div class="combo-opt" onmousedown="comboPick('${which}','${esc(o).replace(/'/g,"\\'")}')">${esc(o)}</div>`).join('');
   box.classList.add('open');
+}
+function comboOpenAll(which){ // always show the complete list, regardless of what's already in the box
+  comboRender(which,comboSource(which));
+}
+function comboFilter(which){
+  const inp=document.getElementById('f_'+which);if(!inp)return;
+  const q=(inp.value||'').trim().toLowerCase();
+  const all=comboSource(which);
+  comboRender(which, q?all.filter(o=>o.toLowerCase().includes(q)):all);
 }
 function comboPick(which,val){
   const inp=document.getElementById('f_'+which);inp.value=val;
