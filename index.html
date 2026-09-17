@@ -630,8 +630,24 @@ function openAsset(id,preAssign){const rnd=Math.random().toString(36).slice(2,8)
 }
 function comboSource(which){
   if(which==='type')return state.config.types||[];
-  if(which==='brand')return state.config.brands||[];
-  if(which==='model'){const b=(document.getElementById('f_brand').value||'').trim();return state.config.models[b]||[];}
+  if(which==='brand'){
+    const t=(document.getElementById('f_type')||{}).value;
+    if(t){
+      // brands actually used for this type; fall back to all brands if none yet
+      const used=[...new Set(state.assets.filter(a=>a.type===t&&a.brand).map(a=>a.brand))].sort();
+      return used.length?used:(state.config.brands||[]);
+    }
+    return state.config.brands||[];
+  }
+  if(which==='model'){
+    const t=(document.getElementById('f_type')||{}).value;
+    const b=((document.getElementById('f_brand')||{}).value||'').trim();
+    if(!b)return [];
+    // models used for this brand (optionally within this type); fall back to config models for the brand
+    let used=[...new Set(state.assets.filter(a=>a.brand===b&&(!t||a.type===t)&&a.model).map(a=>a.model))].sort();
+    if(!used.length)used=(state.config.models[b]||[]);
+    return used;
+  }
   return [];
 }
 function comboRender(which,list){
@@ -652,6 +668,7 @@ function comboFilter(which){
 function comboPick(which,val){
   const inp=document.getElementById('f_'+which);inp.value=val;
   document.getElementById('combo_'+which).classList.remove('open');
+  if(which==='type'){document.getElementById('f_brand').value='';document.getElementById('f_model').value='';} // type changed -> reset brand+model
   if(which==='brand'){document.getElementById('f_model').value='';} // brand changed -> clear model
 }
 function comboBlur(which){setTimeout(()=>{const box=document.getElementById('combo_'+which);if(box)box.classList.remove('open');},150);}
