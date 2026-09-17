@@ -182,6 +182,11 @@ td.actions{white-space:nowrap;text-align:right}
 .modal-f{padding:16px 22px;border-top:1px solid var(--border);display:flex;justify-content:flex-end;gap:10px;position:sticky;bottom:0;background:var(--surface)}
 .dd-add{font-size:11.5px;color:var(--accent);font-weight:600;background:none;border:none;padding:2px 0;margin-top:4px}
 .dd-hint{display:block;font-size:11px;color:var(--faint);margin-top:4px}
+.combo{position:relative}
+.combo-list{position:absolute;left:0;right:0;top:calc(100% + 2px);background:var(--surface);border:1px solid var(--border2);border-radius:8px;box-shadow:var(--shadow);max-height:190px;overflow-y:auto;z-index:20;display:none}
+.combo-list.open{display:block}
+.combo-opt{padding:8px 11px;font-size:13.5px;cursor:pointer}
+.combo-opt:hover{background:var(--accent-dim);color:var(--accent-ink)}
 
 /* toast */
 #toasts{position:fixed;bottom:20px;right:20px;z-index:400;display:flex;flex-direction:column;gap:8px}
@@ -598,11 +603,11 @@ function openAsset(id,preAssign){
     <div class="modal-h"><h3>${id?'Edit asset':'Add asset'}</h3><button class="btn-ghost" onclick="closeModal()">✕</button></div>
     <div class="modal-b">
       <div class="row2">
-        <div class="field"><label>Type</label><input id="f_type" list="dl_types" value="${esc(a.type)}" placeholder="Pick or type a new type" autocomplete="off"><datalist id="dl_types">${state.config.types.map(o=>`<option value="${esc(o)}">`).join('')}</datalist><span class="dd-hint">Pick from the list or type a new one</span></div>
-        <div class="field"><label>Brand</label><input id="f_brand" list="dl_brands" value="${esc(a.brand)}" placeholder="Pick or type a new brand" autocomplete="off" oninput="syncModels()"><datalist id="dl_brands">${state.config.brands.map(o=>`<option value="${esc(o)}">`).join('')}</datalist><span class="dd-hint">Pick from the list or type a new one</span></div>
+        <div class="field"><label>Type</label><div class="combo"><input id="f_type" value="${esc(a.type)}" placeholder="Pick or type a new type" autocomplete="off" oninput="comboFilter('type')" onfocus="comboFilter('type')" onblur="comboBlur('type')"><div class="combo-list" id="combo_type"></div></div><span class="dd-hint">Pick from the list or type a new one</span></div>
+        <div class="field"><label>Brand</label><div class="combo"><input id="f_brand" value="${esc(a.brand)}" placeholder="Pick or type a new brand" autocomplete="off" oninput="comboFilter('brand');syncModels()" onfocus="comboFilter('brand')" onblur="comboBlur('brand')"><div class="combo-list" id="combo_brand"></div></div><span class="dd-hint">Pick from the list or type a new one</span></div>
       </div>
       <div class="row2">
-        <div class="field"><label>Model</label><input id="f_model" list="dl_models" value="${esc(a.model)}" placeholder="Pick or type a new model" autocomplete="off"><datalist id="dl_models">${(state.config.models[a.brand]||[]).map(o=>`<option value="${esc(o)}">`).join('')}</datalist><span class="dd-hint">Pick from the list or type a new one</span></div>
+        <div class="field"><label>Model</label><div class="combo"><input id="f_model" value="${esc(a.model)}" placeholder="Pick or type a new model" autocomplete="off" oninput="comboFilter('model')" onfocus="comboFilter('model')" onblur="comboBlur('model')"><div class="combo-list" id="combo_model"></div></div><span class="dd-hint">Pick from the list or type a new one</span></div>
         <div class="field"><label>Serial (asset tag)</label><input id="f_serial" value="${esc(a.serial)}" placeholder="e.g. PF5E9CDC"></div>
       </div>
       <div class="row2">
@@ -623,7 +628,30 @@ function openAsset(id,preAssign){
   </div></div>`;
   mount(m);
 }
-function syncModels(){const b=(document.getElementById('f_brand').value||'').trim();const dl=document.getElementById('dl_models');if(dl)dl.innerHTML=(state.config.models[b]||[]).map(o=>`<option value="${esc(o)}">`).join('');}
+function comboSource(which){
+  if(which==='type')return state.config.types||[];
+  if(which==='brand')return state.config.brands||[];
+  if(which==='model'){const b=(document.getElementById('f_brand').value||'').trim();return state.config.models[b]||[];}
+  return [];
+}
+function comboFilter(which){
+  const inp=document.getElementById('f_'+which);const box=document.getElementById('combo_'+which);if(!inp||!box)return;
+  const q=(inp.value||'').trim().toLowerCase();
+  const all=comboSource(which);
+  const matches=all.filter(o=>o.toLowerCase().includes(q));
+  // show all when empty/focused; filtered when typing
+  const list=(q?matches:all);
+  if(!list.length){box.classList.remove('open');box.innerHTML='';return;}
+  box.innerHTML=list.map(o=>`<div class="combo-opt" onmousedown="comboPick('${which}','${esc(o).replace(/'/g,"\\'")}')">${esc(o)}</div>`).join('');
+  box.classList.add('open');
+}
+function comboPick(which,val){
+  const inp=document.getElementById('f_'+which);inp.value=val;
+  document.getElementById('combo_'+which).classList.remove('open');
+  if(which==='brand'){document.getElementById('f_model').value='';} // brand changed -> clear model
+}
+function comboBlur(which){setTimeout(()=>{const box=document.getElementById('combo_'+which);if(box)box.classList.remove('open');},150);}
+function syncModels(){/* model list is derived live from brand in comboSource; clear stale model dropdown */const box=document.getElementById('combo_model');if(box)box.classList.remove('open');}
 function addModel(){const b=document.getElementById('f_brand').value;const v=prompt('New model for '+b+':');if(!v)return;state.config.models[b]=state.config.models[b]||[];if(!state.config.models[b].includes(v))state.config.models[b].push(v);saveState();syncModels();document.getElementById('f_model').value=v;}
 function addOpt(key,fid){const v=prompt('Add new '+key.slice(0,-1)+':');if(!v)return;if(!state.config[key].includes(v)){state.config[key].push(v);state.config[key].sort();saveState();}const sel=document.getElementById(fid);sel.innerHTML=state.config[key].map(o=>`<option ${o===v?'selected':''}>${esc(o)}</option>`).join('');}
 function saveAsset(id){if(!canEdit()){toast("View-only access — editing is restricted","err");return;}
