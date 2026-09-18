@@ -149,6 +149,7 @@ td{padding:11px 14px;border-bottom:1px solid var(--border);vertical-align:middle
 td.wrapok{white-space:normal}
 tr:last-child td{border-bottom:none}
 tbody tr:hover{background:var(--surface2)}
+tr.clickrow{cursor:pointer}
 td.actions{white-space:nowrap;text-align:right}
 .tbl-foot{padding:12px 16px;color:var(--muted);font-size:12.5px;border-top:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;background:var(--surface2)}
 
@@ -554,13 +555,13 @@ function drawAssetRows(){
   if(!rows.length){body.innerHTML=`<tr><td colspan="9"><div class="empty"><span class="ic">▦</span><b>No matching assets</b>Adjust your search or filters.</div></td></tr>`;}
   else body.innerHTML=rows.map(a=>{
     const flag=isFlagged(a)?`<span class="flag-badge">⚠ dup</span>`:'';
-    return `<tr>
+    return `<tr class="clickrow" onclick="viewAsset('${a.id}')" title="View details">
       <td>${esc(a.type)}</td><td>${esc(a.brand)}</td><td>${esc(a.model)||'<span class="unassigned">—</span>'}</td>
       <td>${esc(a.serial)||'<span class="unassigned">none</span>'}${flag}</td>
       <td>${condPill(a.condition)}</td><td>${statusPill(a.status)}</td>
       <td>${a.assignedTo?esc(a.assignedTo):'<span class="unassigned">Unassigned</span>'}</td>
       <td>${esc(a.site)}</td>
-      <td class="actions">${canEdit()?`${a.assignedTo?`<button class="ic-btn" title="Swap this device for another (returns this one to stock)" onclick="swapAsset('${a.id}')">⇄</button>`:''}<button class="ic-btn" title="Edit" onclick="openAsset('${a.id}')">✎</button><button class="ic-btn del" title="Delete" onclick="delAsset('${a.id}')">🗑</button>`:'<span style="color:var(--faint)">—</span>'}</td>
+      <td class="actions" onclick="event.stopPropagation()">${canEdit()?`${a.assignedTo?`<button class="ic-btn" title="Swap this device for another (returns this one to stock)" onclick="swapAsset('${a.id}')">⇄</button>`:''}<button class="ic-btn" title="Edit" onclick="openAsset('${a.id}')">✎</button><button class="ic-btn del" title="Delete" onclick="delAsset('${a.id}')">🗑</button>`:'<span style="color:var(--faint)">—</span>'}</td>
     </tr>`;}).join('');
   document.getElementById('assetFoot').innerHTML=`<span>${rows.length} of ${state.assets.length} assets</span>`;
 }
@@ -745,6 +746,39 @@ function swapDevice(id,name){
   a.assignedTo='';a.status='In Stock';saveState();
   toast('Old device returned to stock — now choose the replacement','ok');
   assignDeviceMenu(name); // pick or add the new device
+}
+function viewAsset(id){
+  const a=state.assets.find(x=>x.id===id);if(!a)return;
+  const flag=isFlagged(a);
+  const dupNote=flag?`<div class="flag-item" style="margin-bottom:16px"><span class="ic">⚠</span><div><b>Duplicate serial</b><p>This serial (${esc(a.serial)}) is used on more than one asset. Verify and correct.</p></div></div>`:'';
+  const person=a.assignedTo?state.employees.find(e=>e.name===a.assignedTo):null;
+  const m=`<div class="modal-bg" onclick="if(event.target===this)closeModal()"><div class="modal" style="max-width:560px">
+    <div class="modal-h"><h3>Asset details</h3><button class="btn-ghost" onclick="closeModal()">✕</button></div>
+    <div class="modal-b">
+      <div class="prof-head">
+        <div class="prof-av" style="border-radius:12px">${esc((a.type||'?')[0]).toUpperCase()}</div>
+        <div><div class="prof-name">${esc(a.brand)} ${esc(a.model)}</div><div class="prof-role">${esc(a.type)} ${statusPill(a.status)}</div></div>
+      </div>
+      ${dupNote}
+      <div class="prof-grid">
+        <div><span class="prof-lbl">Serial (asset tag)</span><span class="prof-val">${esc(a.serial)||'—'}</span></div>
+        <div><span class="prof-lbl">Condition</span><span class="prof-val">${esc(a.condition)||'—'}</span></div>
+        <div><span class="prof-lbl">Status</span><span class="prof-val">${esc(a.status)||'—'}</span></div>
+        <div><span class="prof-lbl">Site</span><span class="prof-val">${esc(a.site)||'—'}</span></div>
+        <div><span class="prof-lbl">Assigned to</span><span class="prof-val">${a.assignedTo?esc(a.assignedTo):'Unassigned'}</span></div>
+        ${person?`<div><span class="prof-lbl">Assignee role</span><span class="prof-val">${esc(person.role)||'—'}</span></div>`:''}
+        ${a.warrantyExpiry?`<div><span class="prof-lbl">Warranty expiry</span><span class="prof-val">${esc(a.warrantyExpiry)}</span></div>`:''}
+        ${a.supplier?`<div><span class="prof-lbl">Supplier</span><span class="prof-val">${esc(a.supplier)}</span></div>`:''}
+      </div>
+      ${a.notes?`<div class="prof-sec">Notes</div><div style="font-size:13.5px;color:var(--ink);background:var(--surface2);border-radius:8px;padding:12px">${esc(a.notes)}</div>`:''}
+    </div>
+    <div class="modal-f">
+      ${canEdit()&&a.assignedTo?`<button class="btn" onclick="closeModal();swapAsset('${a.id}')">⇄ Swap</button>`:''}
+      ${canEdit()?`<button class="btn" onclick="closeModal();openAsset('${a.id}')">Edit</button>`:''}
+      <button class="btn btn-primary" onclick="closeModal()">Close</button>
+    </div>
+  </div></div>`;
+  mount(m);
 }
 function viewEmp(name){
   const e=state.employees.find(x=>x.name===name);if(!e)return;
