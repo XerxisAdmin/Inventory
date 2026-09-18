@@ -574,7 +574,7 @@ function statusPill(s){const m={'In Use':'inuse','In Stock':'instock','Under Rep
 function condPill(c){const m={'New':'new','Good':'good','Fair':'fair','Damaged':'damaged'};return `<span class="pill ${m[c]||'good'}">${esc(c)||'—'}</span>`;}
 
 /* ============ EMPLOYEES ============ */
-let eSearch='',eSort={k:'name',dir:1};
+let eSearch='',eSort={k:'employeeId',dir:1};
 function renderEmps(c){
   let h=`<div class="toolbar"><div class="search"><span class="ic">⌕</span><input placeholder="Search name, role, email…" value="${esc(eSearch)}" oninput="eSearch=this.value;drawEmpRows()"></div></div>
   <div class="tbl-wrap"><div class="tbl-scroll"><table>
