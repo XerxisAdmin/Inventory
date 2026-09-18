@@ -151,6 +151,10 @@ td.wrapok{white-space:normal}
 tr:last-child td{border-bottom:none}
 tbody tr:hover{background:var(--surface2)}
 tr.clickrow{cursor:pointer}
+.compact-tbl{font-size:12.5px}
+.compact-tbl th,.compact-tbl td{padding:8px 10px;white-space:normal}
+.compact-tbl td:nth-child(2){min-width:150px}
+.compact-tbl td:last-child,.compact-tbl th:last-child{white-space:nowrap}
 td.actions{white-space:nowrap;text-align:right}
 .tbl-foot{padding:12px 16px;color:var(--muted);font-size:12.5px;border-top:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;background:var(--surface2)}
 
@@ -844,9 +848,9 @@ function viewEmp(name){
         ${e.startDate?`<div><span class="prof-lbl">Start date</span><span class="prof-val">${esc(e.startDate)}</span></div>`:''}
       </div>
       <div class="prof-sec">Assigned assets <span class="prof-count">${assets.length}</span>${canEdit()?`<button class="btn btn-sm btn-primary" style="margin-left:auto" onclick="assignDeviceMenu('${esc(e.name).replace(/'/g,"\\'")}')">+ Assign device</button>`:''}</div>
-      <div class="tbl-wrap" style="box-shadow:none"><table>
+      <div class="tbl-wrap" style="box-shadow:none"><div style="overflow-x:auto"><table class="compact-tbl">
         <thead><tr><th>Type</th><th>Brand / model</th><th>Serial</th><th>Condition</th></tr></thead>
-        <tbody>${rows}</tbody></table></div>
+        <tbody>${rows}</tbody></table></div></div>
     </div>
     <div class="modal-f">${canEdit()?`<button class="btn" onclick="closeModal();openEmp('${e.employeeId||''}','${esc(e.name).replace(/'/g,"\\'")}')">Edit details</button>`:''}<button class="btn btn-primary" onclick="closeModal()">Close</button></div>
   </div></div>`;
