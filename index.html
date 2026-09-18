@@ -934,7 +934,26 @@ function saveEmp(origName){if(!canEdit()){toast("View-only access — editing is
   const g=k=>{const el=document.getElementById('e_'+k);return el?el.value:'';};
   const rec={employeeId:g('employeeId'),name:g('name').trim(),role:g('role'),email:g('email'),site:g('site'),department:g('department'),startDate:g('startDate'),status:g('status')};
   if(!rec.name){toast('Name is required','err');return;}
-  if(origName){const old=state.employees.find(x=>x.name===origName);Object.assign(old,rec);if(origName!==rec.name){state.assets.forEach(a=>{if(a.assignedTo===origName)a.assignedTo=rec.name;});}toast('Person updated','ok');}
+  if(origName){
+    const old=state.employees.find(x=>x.name===origName);
+    const wasActive=(old.status||'').toLowerCase()!=='offboarded';
+    const nowOffboarded=(rec.status||'').toLowerCase()==='offboarded';
+    Object.assign(old,rec);
+    if(origName!==rec.name){state.assets.forEach(a=>{if(a.assignedTo===origName)a.assignedTo=rec.name;});}
+    // Automation: when an employee becomes Offboarded, return all their devices to stock
+    if(wasActive&&nowOffboarded){
+      const theirs=state.assets.filter(a=>a.assignedTo===rec.name);
+      if(theirs.length){
+        if(confirm('Mark '+rec.name+' as Offboarded and return their '+theirs.length+' assigned device(s) to stock?\n\n'+theirs.map(a=>'• '+a.type+' '+a.brand+' '+a.model+(a.serial?' ('+a.serial+')':'')).join('\n'))){
+          theirs.forEach(a=>{a.assignedTo='';a.status='In Stock';});
+          toast('Person offboarded — '+theirs.length+' device(s) returned to stock','ok');
+        } else {
+          // they cancelled the auto-unassign; keep them offboarded but leave devices assigned
+          toast('Person offboarded — devices left assigned','ok');
+        }
+      } else { toast('Person updated','ok'); }
+    } else { toast('Person updated','ok'); }
+  }
   else{state.employees.push(rec);toast('Person added','ok');}
   saveState();closeModal();render();
 }
