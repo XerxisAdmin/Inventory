@@ -731,7 +731,23 @@ function saveAsset(id){if(!canEdit()){toast("View-only access — editing is res
     }
     Object.assign(existing,rec);toast('Asset updated','ok');
   }
-  else{rec.id=genId();state.assets.push(rec);toast('Asset added','ok');}
+  else{
+    // Smart duplicate prevention: if this serial already exists, offer to update that record instead of creating a duplicate
+    if(rec.serial){
+      const twin=state.assets.find(x=>x.serial===rec.serial);
+      if(twin){
+        const holder=twin.assignedTo?('currently assigned to '+twin.assignedTo):'currently in stock (unassigned)';
+        const msg='A device with serial '+rec.serial+' already exists ('+twin.type+' '+twin.brand+' '+twin.model+', '+holder+').\n\n'+
+          'This is the SAME physical device. Instead of creating a duplicate, update the existing record'+(rec.assignedTo?(' and assign it to '+rec.assignedTo):'')+'?\n\n'+
+          'OK = update the existing record (recommended, no duplicate)\nCancel = keep them separate (creates a duplicate)';
+        if(confirm(msg)){
+          Object.assign(twin,rec,{id:twin.id});
+          saveState();closeModal();toast('Existing device updated — no duplicate created','ok');render();return;
+        }
+      }
+    }
+    rec.id=genId();state.assets.push(rec);toast('Asset added','ok');
+  }
   saveState();closeModal();render();
 }
 function delAsset(id){if(!canEdit()){toast("View-only access — editing is restricted","err");return;}const a=state.assets.find(x=>x.id===id);if(!confirm('Delete this '+(a.type||'asset')+(a.serial?' ('+a.serial+')':'')+'?'))return;state.assets=state.assets.filter(x=>x.id!==id);saveState();toast('Asset deleted','ok');render();}
