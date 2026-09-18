@@ -821,11 +821,10 @@ function viewAsset(id){
 function viewEmp(name){
   const e=state.employees.find(x=>x.name===name);if(!e)return;
   const assets=state.assets.filter(a=>a.assignedTo===name);
-  const rows=assets.length?assets.map(a=>`<tr>
+  const rows=assets.length?assets.map(a=>`<tr class="clickrow" onclick="closeModal();viewAsset('${a.id}')" title="View asset details">
       <td>${esc(a.type)}</td><td>${esc(a.brand)} ${esc(a.model)}</td>
-      <td style="color:var(--muted)">${esc(a.serial)||'—'}</td><td>${condPill(a.condition)}</td><td>${statusPill(a.status)}</td>
-      ${canEdit()?`<td class="actions"><button class="ic-btn" title="Swap for another device" onclick="swapDevice('${a.id}','${esc(name).replace(/'/g,"\\'")}')">⇄</button><button class="ic-btn del" title="Unassign (return to stock)" onclick="unassignDevice('${a.id}','${esc(name).replace(/'/g,"\\'")}')">✕</button></td>`:''}
-    </tr>`).join(''):`<tr><td colspan="${canEdit()?6:5}" style="text-align:center;color:var(--faint);padding:18px">No assets assigned</td></tr>`;
+      <td style="color:var(--muted)">${esc(a.serial)||'—'}</td><td>${condPill(a.condition)}</td>
+    </tr>`).join(''):`<tr><td colspan="4" style="text-align:center;color:var(--faint);padding:18px">No assets assigned</td></tr>`;
   const initials=(e.name||'?').split(' ').map(w=>w[0]).slice(0,2).join('').toUpperCase();
   const m=`<div class="modal-bg" onclick="if(event.target===this)closeModal()"><div class="modal" style="max-width:640px">
     <div class="modal-h"><h3>Employee profile</h3><button class="btn-ghost" onclick="closeModal()">✕</button></div>
@@ -844,7 +843,7 @@ function viewEmp(name){
       </div>
       <div class="prof-sec">Assigned assets <span class="prof-count">${assets.length}</span>${canEdit()?`<button class="btn btn-sm btn-primary" style="margin-left:auto" onclick="assignDeviceMenu('${esc(e.name).replace(/'/g,"\\'")}')">+ Assign device</button>`:''}</div>
       <div class="tbl-wrap" style="box-shadow:none"><table>
-        <thead><tr><th>Type</th><th>Brand / model</th><th>Serial</th><th>Condition</th><th>Status</th>${canEdit()?'<th></th>':''}</tr></thead>
+        <thead><tr><th>Type</th><th>Brand / model</th><th>Serial</th><th>Condition</th></tr></thead>
         <tbody>${rows}</tbody></table></div>
     </div>
     <div class="modal-f">${canEdit()?`<button class="btn" onclick="closeModal();openEmp('${e.employeeId||''}','${esc(e.name).replace(/'/g,"\\'")}')">Edit details</button>`:''}<button class="btn btn-primary" onclick="closeModal()">Close</button></div>
