@@ -185,6 +185,10 @@ td.actions{white-space:nowrap;text-align:right}
 .dd-add{font-size:11.5px;color:var(--accent);font-weight:600;background:none;border:none;padding:2px 0;margin-top:4px}
 .dd-hint{display:block;font-size:11px;color:var(--faint);margin-top:4px}
 .combo{position:relative}
+.combo-wrap{display:flex;gap:6px;align-items:stretch}
+.combo-wrap .combo{flex:1}
+.new-btn{flex-shrink:0;border:1px solid var(--accent);background:var(--accent-dim);color:var(--accent-ink);border-radius:8px;padding:0 12px;font-size:12.5px;font-weight:700;cursor:pointer;white-space:nowrap}
+.new-btn:hover{background:var(--accent);color:#fff}
 .combo-list{position:absolute;left:0;right:0;top:calc(100% + 2px);background:var(--surface);border:1px solid var(--border2);border-radius:8px;box-shadow:var(--shadow);max-height:190px;overflow-y:auto;z-index:20;display:none}
 .combo-list.open{display:block}
 .combo-opt{padding:8px 11px;font-size:13.5px;cursor:pointer}
@@ -605,11 +609,11 @@ function openAsset(id,preAssign){const rnd=Math.random().toString(36).slice(2,8)
     <div class="modal-h"><h3>${id?'Edit asset':'Add asset'}</h3><button class="btn-ghost" onclick="closeModal()">✕</button></div>
     <div class="modal-b">
       <div class="row2">
-        <div class="field"><label>Type</label><div class="combo"><input id="f_type" name="f_type_${rnd}" autocomplete="new-password" autocorrect="off" autocapitalize="off" spellcheck="false" value="${esc(a.type)}" placeholder="Pick or type a new type" oninput="comboFilter('type')" onfocus="comboOpenAll('type')" onblur="comboBlur('type')"><div class="combo-list" id="combo_type"></div></div><span class="dd-hint">Pick from the list or type a new one</span></div>
-        <div class="field"><label>Brand</label><div class="combo"><input id="f_brand" name="f_brand_${rnd}" autocomplete="new-password" autocorrect="off" autocapitalize="off" spellcheck="false" value="${esc(a.brand)}" placeholder="Pick or type a new brand" oninput="comboFilter('brand');syncModels()" onfocus="comboOpenAll('brand')" onblur="comboBlur('brand')"><div class="combo-list" id="combo_brand"></div></div><span class="dd-hint">Pick from the list or type a new one</span></div>
+        <div class="field"><label>Type</label><div class="combo-wrap"><div class="combo"><input id="f_type" name="f_type_${rnd}" autocomplete="new-password" autocorrect="off" autocapitalize="off" spellcheck="false" value="${esc(a.type)}" placeholder="Pick or type a new type" oninput="comboFilter('type')" onfocus="comboOpenAll('type')" onblur="comboBlur('type')"><div class="combo-list" id="combo_type"></div></div><button type="button" class="new-btn" onclick="addNewValue('type')">+ New</button></div><span class="dd-hint">Pick from the list, type, or click + New</span></div>
+        <div class="field"><label>Brand</label><div class="combo-wrap"><div class="combo"><input id="f_brand" name="f_brand_${rnd}" autocomplete="new-password" autocorrect="off" autocapitalize="off" spellcheck="false" value="${esc(a.brand)}" placeholder="Pick or type a new brand" oninput="comboFilter('brand');syncModels()" onfocus="comboOpenAll('brand')" onblur="comboBlur('brand')"><div class="combo-list" id="combo_brand"></div></div><button type="button" class="new-btn" onclick="addNewValue('brand')">+ New</button></div><span class="dd-hint">Pick from the list, type, or click + New</span></div>
       </div>
       <div class="row2">
-        <div class="field"><label>Model</label><div class="combo"><input id="f_model" name="f_model_${rnd}" autocomplete="new-password" autocorrect="off" autocapitalize="off" spellcheck="false" value="${esc(a.model)}" placeholder="Pick or type a new model" oninput="comboFilter('model')" onfocus="comboOpenAll('model')" onblur="comboBlur('model')"><div class="combo-list" id="combo_model"></div></div><span class="dd-hint">Pick from the list or type a new one</span></div>
+        <div class="field"><label>Model</label><div class="combo-wrap"><div class="combo"><input id="f_model" name="f_model_${rnd}" autocomplete="new-password" autocorrect="off" autocapitalize="off" spellcheck="false" value="${esc(a.model)}" placeholder="Pick or type a new model" oninput="comboFilter('model')" onfocus="comboOpenAll('model')" onblur="comboBlur('model')"><div class="combo-list" id="combo_model"></div></div><button type="button" class="new-btn" onclick="addNewValue('model')">+ New</button></div><span class="dd-hint">Pick from the list, type, or click + New</span></div>
         <div class="field"><label>Serial (asset tag)</label><input id="f_serial" value="${esc(a.serial)}" placeholder="e.g. PF5E9CDC"></div>
       </div>
       <div class="row2">
@@ -638,6 +642,22 @@ function openAsset(id,preAssign){const rnd=Math.random().toString(36).slice(2,8)
     <div class="modal-f"><button class="btn" onclick="closeModal()">Cancel</button><button class="btn btn-primary" onclick="saveAsset('${a.id}')">${id?'Save changes':'Add asset'}</button></div>
   </div></div>`;
   mount(m);
+}
+function addNewValue(which){
+  const labels={type:'type',brand:'brand',model:'model'};
+  let extra='';
+  if(which==='brand'){const t=(document.getElementById('f_type').value||'').trim();if(!t){alert('Pick or enter a Type first, then add a Brand for it.');return;}extra=' (for type: '+t+')';}
+  if(which==='model'){const b=(document.getElementById('f_brand').value||'').trim();if(!b){alert('Pick or enter a Brand first, then add a Model for it.');return;}extra=' (for brand: '+b+')';}
+  const v=(prompt('Enter a new '+labels[which]+extra+':')||'').trim();
+  if(!v)return;
+  // register into config immediately
+  if(which==='type'){if(!state.config.types.includes(v)){state.config.types.push(v);state.config.types.sort();}}
+  if(which==='brand'){if(!state.config.brands.includes(v)){state.config.brands.push(v);state.config.brands.sort();}}
+  if(which==='model'){const b=(document.getElementById('f_brand').value||'').trim();state.config.models[b]=state.config.models[b]||[];if(!state.config.models[b].includes(v)){state.config.models[b].push(v);state.config.models[b].sort();}}
+  saveState();
+  document.getElementById('f_'+which).value=v;
+  const box=document.getElementById('combo_'+which);if(box)box.classList.remove('open');
+  toast('Added "'+v+'" — remember to Save the asset','ok');
 }
 function comboSource(which){
   if(which==='type')return state.config.types||[];
