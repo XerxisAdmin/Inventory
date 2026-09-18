@@ -961,6 +961,38 @@ function mount(html){document.getElementById('modalMount').innerHTML=html;}
 function closeModal(){document.getElementById('modalMount').innerHTML='';}
 function toast(msg,kind){const t=document.createElement('div');t.className='toast '+(kind||'');t.innerHTML=(kind==='ok'?'✓ ':kind==='err'?'⚠ ':'')+esc(msg);document.getElementById('toasts').appendChild(t);setTimeout(()=>t.remove(),2600);}
 document.addEventListener('keydown',e=>{if(e.key==='Escape')closeModal();});
+
+/* ===== Auto-resume: on page load, if a Microsoft session is cached, skip the login screen and go back into the app ===== */
+async function tryAutoResume(){
+  try{
+    if(!window.msal)return;
+    if(!msalInstance){
+      msalInstance=new msal.PublicClientApplication({
+        auth:{clientId:CLIENT_ID,authority:'https://login.microsoftonline.com/'+TENANT_ID,redirectUri:window.location.href.split('#')[0].split('?')[0]},
+        cache:{cacheLocation:'localStorage'}
+      });
+      await msalInstance.initialize();
+    }
+    const accts=msalInstance.getAllAccounts();
+    if(!accts.length)return; // no cached session -> stay on login screen
+    // silently get a token from the cached session
+    const res=await msalInstance.acquireTokenSilent({scopes:SCOPES,account:accts[0]});
+    accessToken=res.accessToken;currentAccount=res.account;MODE='sharepoint';
+    await spResolveSite();
+    await spLoad();
+    document.getElementById('login').classList.add('hidden');
+    document.getElementById('app').classList.remove('hidden');
+    const nm=currentAccount.name||currentAccount.username;
+    document.getElementById('userName').textContent=nm;
+    document.getElementById('userMode').textContent='SharePoint · synced';
+    document.getElementById('userAv').textContent=(nm[0]||'U').toUpperCase();
+    nav('dashboard');
+  }catch(e){
+    // silent failure -> just leave the login screen visible so the user can click Connect
+    console.log('Auto-resume not available:',e&&e.message);
+  }
+}
+window.addEventListener('load',tryAutoResume);
 </script>
 </body>
 </html>
