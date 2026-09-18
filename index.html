@@ -621,8 +621,8 @@ function openAsset(id,preAssign){const rnd=Math.random().toString(36).slice(2,8)
         <div class="field"><label>Site</label><select id="f_site">${dd(state.config.sites,a.site)}</select><button class="dd-add" onclick="addOpt('sites','f_site')">+ Add site</button></div>
       </div>
       <div class="row2">
-        <div class="field"><label>Warranty expiry <span style="font-weight:400;color:var(--faint)">(optional)</span></label><input id="f_warrantyExpiry" type="date" value="${esc(a.warrantyExpiry)}"></div>
-        <div class="field"><label>Supplier <span style="font-weight:400;color:var(--faint)">(optional)</span></label><input id="f_supplier" value="${esc(a.supplier)}"></div>
+        <div class="field"><label>Warranty expiry <span style="font-weight:400;color:var(--faint)">(optional)</span></label><input id="f_warrantyExpiry" type="month" value="${esc((a.warrantyExpiry||'').slice(0,7))}"></div>
+        <div class="field"><label>Supplier <span style="font-weight:400;color:var(--faint)">(optional)</span></label><div class="combo"><input id="f_supplier" name="f_supplier_${rnd}" autocomplete="new-password" autocorrect="off" autocapitalize="off" spellcheck="false" value="${esc(a.supplier)}" placeholder="Pick or type a supplier" oninput="comboFilter('supplier')" onfocus="comboOpenAll('supplier')" onblur="comboBlur('supplier')"><div class="combo-list" id="combo_supplier"></div></div></div>
       </div>
       <div class="spec-head">Specifications <span style="font-weight:400;color:var(--faint);font-size:11.5px">(optional — for laptops/PCs)</span></div>
       <div class="row2">
@@ -659,6 +659,7 @@ function comboSource(which){
     if(!used.length)used=(state.config.models[b]||[]);
     return used;
   }
+  if(which==='supplier'){return state.config.suppliers||[...new Set(state.assets.filter(a=>a.supplier).map(a=>a.supplier))].sort();}
   return [];
 }
 function comboRender(which,list){
@@ -694,6 +695,7 @@ function saveAsset(id){if(!canEdit()){toast("View-only access — editing is res
   if(rec.type&&!state.config.types.includes(rec.type)){state.config.types.push(rec.type);state.config.types.sort();}
   if(rec.brand&&!state.config.brands.includes(rec.brand)){state.config.brands.push(rec.brand);state.config.brands.sort();}
   if(rec.brand&&rec.model){state.config.models[rec.brand]=state.config.models[rec.brand]||[];if(!state.config.models[rec.brand].includes(rec.model)){state.config.models[rec.brand].push(rec.model);state.config.models[rec.brand].sort();}}
+  if(rec.supplier){state.config.suppliers=state.config.suppliers||[];if(!state.config.suppliers.includes(rec.supplier)){state.config.suppliers.push(rec.supplier);state.config.suppliers.sort();}}
   if(id){
     const existing=state.assets.find(x=>x.id===id);
     // Part A: warn if the serial is being changed on an assigned device — likely a swap, not an edit
@@ -777,7 +779,7 @@ function viewAsset(id){
         <div><span class="prof-lbl">Site</span><span class="prof-val">${esc(a.site)||'—'}</span></div>
         <div><span class="prof-lbl">Assigned to</span><span class="prof-val">${a.assignedTo?esc(a.assignedTo):'Unassigned'}</span></div>
         ${person?`<div><span class="prof-lbl">Assignee role</span><span class="prof-val">${esc(person.role)||'—'}</span></div>`:''}
-        ${a.warrantyExpiry?`<div><span class="prof-lbl">Warranty expiry</span><span class="prof-val">${esc(a.warrantyExpiry)}</span></div>`:''}
+        ${a.warrantyExpiry?`<div><span class="prof-lbl">Warranty expiry</span><span class="prof-val">${fmtMonth(a.warrantyExpiry)}</span></div>`:''}
         ${a.supplier?`<div><span class="prof-lbl">Supplier</span><span class="prof-val">${esc(a.supplier)}</span></div>`:''}
       </div>
       ${(a.cpu||a.ram||a.storage||a.gpu)?`<div class="prof-sec">Specifications</div><div class="prof-grid">
@@ -933,6 +935,7 @@ function exportCsv(kind){
 
 /* ============ UTIL ============ */
 function esc(s){return String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));}
+function fmtMonth(s){if(!s)return '—';const m=String(s).slice(0,7).split('-');if(m.length<2)return esc(s);const names=['January','February','March','April','May','June','July','August','September','October','November','December'];const mi=parseInt(m[1],10)-1;return (names[mi]||m[1])+' '+m[0];}
 function mount(html){document.getElementById('modalMount').innerHTML=html;}
 function closeModal(){document.getElementById('modalMount').innerHTML='';}
 function toast(msg,kind){const t=document.createElement('div');t.className='toast '+(kind||'');t.innerHTML=(kind==='ok'?'✓ ':kind==='err'?'⚠ ':'')+esc(msg);document.getElementById('toasts').appendChild(t);setTimeout(()=>t.remove(),2600);}
