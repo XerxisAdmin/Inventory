@@ -129,6 +129,7 @@ input,select{font-family:inherit;font-size:14px}
 .prof-val{font-size:13.5px;color:var(--ink)}
 .prof-sec{font-family:'Space Grotesk';font-weight:600;font-size:14px;margin-bottom:10px;display:flex;align-items:center;gap:8px}
 .prof-count{background:var(--accent-dim);color:var(--accent-ink);font-family:'Inter';font-size:12px;font-weight:700;padding:1px 9px;border-radius:20px}
+.spec-head{font-family:'Space Grotesk';font-weight:600;font-size:13.5px;margin:6px 0 10px;padding-top:14px;border-top:1px solid var(--border);color:var(--accent-ink)}
 
 /* ---------- Table ---------- */
 .toolbar{display:flex;gap:10px;align-items:center;margin-bottom:16px;flex-wrap:wrap}
@@ -597,7 +598,7 @@ function drawEmpRows(){
 
 /* ============ MODALS: ASSET ============ */
 function openAsset(id,preAssign){const rnd=Math.random().toString(36).slice(2,8);
-  const a=id?state.assets.find(x=>x.id===id):{id:'',type:'',brand:'',model:'',serial:'',condition:'New',status:preAssign?'In Use':'In Stock',assignedTo:preAssign||'',site:state.config.sites[0]||'',warrantyExpiry:'',supplier:'',notes:''};
+  const a=id?state.assets.find(x=>x.id===id):{id:'',type:'',brand:'',model:'',serial:'',condition:'New',status:preAssign?'In Use':'In Stock',assignedTo:preAssign||'',site:state.config.sites[0]||'',warrantyExpiry:'',supplier:'',cpu:'',ram:'',storage:'',gpu:'',notes:''};
   const dd=(arr,val,onch)=>arr.map(o=>`<option ${o===val?'selected':''}>${esc(o)}</option>`).join('');
   const empOpts=['',...state.employees.map(e=>e.name)];
   const m=`<div class="modal-bg" onclick="if(event.target===this)closeModal()"><div class="modal">
@@ -622,6 +623,15 @@ function openAsset(id,preAssign){const rnd=Math.random().toString(36).slice(2,8)
       <div class="row2">
         <div class="field"><label>Warranty expiry <span style="font-weight:400;color:var(--faint)">(optional)</span></label><input id="f_warrantyExpiry" type="date" value="${esc(a.warrantyExpiry)}"></div>
         <div class="field"><label>Supplier <span style="font-weight:400;color:var(--faint)">(optional)</span></label><input id="f_supplier" value="${esc(a.supplier)}"></div>
+      </div>
+      <div class="spec-head">Specifications <span style="font-weight:400;color:var(--faint);font-size:11.5px">(optional — for laptops/PCs)</span></div>
+      <div class="row2">
+        <div class="field"><label>CPU</label><input id="f_cpu" value="${esc(a.cpu||'')}" placeholder="e.g. Intel Core Ultra 7 255H, 16C/16T"></div>
+        <div class="field"><label>RAM</label><input id="f_ram" value="${esc(a.ram||'')}" placeholder="e.g. 32 GB"></div>
+      </div>
+      <div class="row2">
+        <div class="field"><label>Storage</label><input id="f_storage" value="${esc(a.storage||'')}" placeholder="e.g. 954 GB SSD"></div>
+        <div class="field"><label>GPU</label><input id="f_gpu" value="${esc(a.gpu||'')}" placeholder="e.g. Intel Arc 140T (15GB)"></div>
       </div>
       <div class="field"><label>Notes</label><textarea id="f_notes">${esc(a.notes)}</textarea></div>
     </div>
@@ -678,7 +688,7 @@ function addModel(){const b=document.getElementById('f_brand').value;const v=pro
 function addOpt(key,fid){const v=prompt('Add new '+key.slice(0,-1)+':');if(!v)return;if(!state.config[key].includes(v)){state.config[key].push(v);state.config[key].sort();saveState();}const sel=document.getElementById(fid);sel.innerHTML=state.config[key].map(o=>`<option ${o===v?'selected':''}>${esc(o)}</option>`).join('');}
 function saveAsset(id){if(!canEdit()){toast("View-only access — editing is restricted","err");return;}
   const g=k=>{const el=document.getElementById('f_'+k);let v=el?el.value:'';if(v==='— Unassigned —')v='';return v.trim();};
-  const rec={type:g('type'),brand:g('brand'),model:g('model'),serial:g('serial'),condition:g('condition'),status:g('status'),assignedTo:g('assignedTo'),site:g('site'),warrantyExpiry:g('warrantyExpiry'),supplier:g('supplier'),notes:g('notes')};
+  const rec={type:g('type'),brand:g('brand'),model:g('model'),serial:g('serial'),condition:g('condition'),status:g('status'),assignedTo:g('assignedTo'),site:g('site'),warrantyExpiry:g('warrantyExpiry'),supplier:g('supplier'),cpu:g('cpu'),ram:g('ram'),storage:g('storage'),gpu:g('gpu'),notes:g('notes')};
   if(!rec.type){toast('Type is required','err');return;}
   // Register any newly-typed type/brand/model so they appear in the lists next time
   if(rec.type&&!state.config.types.includes(rec.type)){state.config.types.push(rec.type);state.config.types.sort();}
@@ -770,7 +780,13 @@ function viewAsset(id){
         ${a.warrantyExpiry?`<div><span class="prof-lbl">Warranty expiry</span><span class="prof-val">${esc(a.warrantyExpiry)}</span></div>`:''}
         ${a.supplier?`<div><span class="prof-lbl">Supplier</span><span class="prof-val">${esc(a.supplier)}</span></div>`:''}
       </div>
-      ${a.notes?`<div class="prof-sec">Notes</div><div style="font-size:13.5px;color:var(--ink);background:var(--surface2);border-radius:8px;padding:12px">${esc(a.notes)}</div>`:''}
+      ${(a.cpu||a.ram||a.storage||a.gpu)?`<div class="prof-sec">Specifications</div><div class="prof-grid">
+        ${a.cpu?`<div><span class="prof-lbl">CPU</span><span class="prof-val">${esc(a.cpu)}</span></div>`:''}
+        ${a.ram?`<div><span class="prof-lbl">RAM</span><span class="prof-val">${esc(a.ram)}</span></div>`:''}
+        ${a.storage?`<div><span class="prof-lbl">Storage</span><span class="prof-val">${esc(a.storage)}</span></div>`:''}
+        ${a.gpu?`<div><span class="prof-lbl">GPU</span><span class="prof-val">${esc(a.gpu)}</span></div>`:''}
+      </div>`:''}
+      ${a.notes?`<div class="prof-sec">Notes</div><div style="font-size:13.5px;color:var(--ink);background:var(--surface2);border-radius:8px;padding:12px;white-space:pre-wrap;line-height:1.6">${esc(a.notes)}</div>`:''}
     </div>
     <div class="modal-f">
       ${canEdit()&&a.assignedTo?`<button class="btn" onclick="closeModal();swapAsset('${a.id}')">⇄ Swap</button>`:''}
@@ -887,9 +903,9 @@ function importCsv(input,kind){if(!canEdit()){toast("View-only access — editin
       const col=n=>hd.findIndex(h=>h.includes(n));
       let added=0;
       if(kind==='assets'){
-        const ci={type:col('type'),brand:col('brand'),model:col('model'),serial:col('serial'),condition:col('condition'),status:col('status'),assigned:col('assigned'),site:col('site')};
+        const ci={type:col('type'),brand:col('brand'),model:col('model'),serial:col('serial'),condition:col('condition'),status:col('status'),assigned:col('assigned'),site:col('site'),cpu:col('cpu'),ram:col('ram'),storage:col('storage'),gpu:col('gpu'),notes:col('notes')};
         rows.forEach(r=>{const get=i=>i>=0?(r[i]||'').trim():'';
-          const rec={id:genId(),type:get(ci.type),brand:get(ci.brand),model:get(ci.model),serial:get(ci.serial),condition:get(ci.condition)||'New',status:get(ci.status)||'In Stock',assignedTo:get(ci.assigned),site:get(ci.site),warrantyExpiry:'',supplier:'',notes:''};
+          const rec={id:genId(),type:get(ci.type),brand:get(ci.brand),model:get(ci.model),serial:get(ci.serial),condition:get(ci.condition)||'New',status:get(ci.status)||'In Stock',assignedTo:get(ci.assigned),site:get(ci.site),warrantyExpiry:'',supplier:'',cpu:get(ci.cpu),ram:get(ci.ram),storage:get(ci.storage),gpu:get(ci.gpu),notes:get(ci.notes)};
           if(rec.type||rec.serial){state.assets.push(rec);added++;refreshConfig(rec);}});
       }else{
         const ci={id:col('id'),name:col('name'),role:col('role'),email:col('email'),site:col('site')};
@@ -905,8 +921,8 @@ function importCsv(input,kind){if(!canEdit()){toast("View-only access — editin
 function refreshConfig(a){if(a.type&&!state.config.types.includes(a.type))state.config.types.push(a.type);if(a.brand&&!state.config.brands.includes(a.brand))state.config.brands.push(a.brand);if(a.site&&!state.config.sites.includes(a.site))state.config.sites.push(a.site);if(a.brand&&a.model){state.config.models[a.brand]=state.config.models[a.brand]||[];if(!state.config.models[a.brand].includes(a.model))state.config.models[a.brand].push(a.model);}}
 function exportCsv(kind){
   let head,rows;
-  if(kind==='assets'){head=['Type','Brand','Model','Serial','Condition','Status','Assigned To','Site','Warranty Expiry','Supplier','Notes'];
-    rows=state.assets.map(a=>[a.type,a.brand,a.model,a.serial,a.condition,a.status,a.assignedTo,a.site,a.warrantyExpiry,a.supplier,a.notes]);}
+  if(kind==='assets'){head=['Type','Brand','Model','Serial','Condition','Status','Assigned To','Site','Warranty Expiry','Supplier','CPU','RAM','Storage','GPU','Notes'];
+    rows=state.assets.map(a=>[a.type,a.brand,a.model,a.serial,a.condition,a.status,a.assignedTo,a.site,a.warrantyExpiry,a.supplier,a.cpu||'',a.ram||'',a.storage||'',a.gpu||'',a.notes]);}
   else{head=['Employee ID','Full Name','Role','Email','Site','Department','Start Date','Status'];
     rows=state.employees.map(e=>[e.employeeId,e.name,e.role,e.email,e.site,e.department,e.startDate,e.status]);}
   const csv=[head,...rows].map(r=>r.map(c=>'"'+String(c||'').replace(/"/g,'""')+'"').join(',')).join('\n');
