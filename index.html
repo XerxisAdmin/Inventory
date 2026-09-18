@@ -783,12 +783,49 @@ function unassignDevice(id,name){
   if(!confirm('Unassign this '+(a.type||'device')+' from '+name+'? It will return to stock.'))return;
   a.assignedTo='';a.status='In Stock';saveState();toast('Device unassigned','ok');viewEmp(name);
 }
+function reassignAsset(id){
+  if(!canEdit())return;
+  const a=state.assets.find(x=>x.id===id);if(!a)return;
+  // Move THIS SAME device to a different person — one record, never a duplicate
+  const names=state.employees.map(e=>e.name);
+  const opts=['— Unassign (return to stock) —',...names];
+  const listHtml=opts.map((o,i)=>`<div class="combo-opt" onmousedown="doReassign('${a.id}',${i})" data-name="${esc(o)}">${esc(o)}</div>`).join('');
+  const cur=a.assignedTo||'(unassigned)';
+  const m=`<div class="modal-bg" onclick="if(event.target===this)closeModal()"><div class="modal" style="max-width:460px">
+    <div class="modal-h"><h3>Reassign device</h3><button class="btn-ghost" onclick="closeModal()">✕</button></div>
+    <div class="modal-b">
+      <p style="font-size:13px;color:var(--muted);margin-bottom:12px">${esc(a.type)} ${esc(a.brand)} ${esc(a.model)} ${a.serial?'('+esc(a.serial)+')':''}<br>Currently: <b>${esc(cur)}</b></p>
+      <div class="field"><label>Move this device to</label>
+        <div class="combo"><input id="reassignPick" autocomplete="new-password" placeholder="Pick a person…" oninput="filterReassign()" onfocus="showReassign()"><div class="combo-list open" id="reassignList">${listHtml}</div></div>
+      </div>
+      <p style="font-size:11.5px;color:var(--faint)">This moves the same device — no duplicate is created.</p>
+    </div>
+  </div></div>`;
+  mount(m);
+}
+function showReassign(){const b=document.getElementById('reassignList');if(b)b.classList.add('open');}
+function filterReassign(){
+  const q=(document.getElementById('reassignPick').value||'').toLowerCase();
+  document.querySelectorAll('#reassignList .combo-opt').forEach(o=>{o.style.display=o.dataset.name.toLowerCase().includes(q)?'':'none';});
+}
+function doReassign(id,optIndex){
+  if(!canEdit())return;
+  const a=state.assets.find(x=>x.id===id);if(!a)return;
+  const opt=document.querySelectorAll('#reassignList .combo-opt')[optIndex];
+  const val=opt?opt.dataset.name:'';
+  if(!val)return;
+  if(val.indexOf('Unassign')===0){a.assignedTo='';a.status='In Stock';toast('Device returned to stock','ok');}
+  else{a.assignedTo=val;a.status='In Use';toast('Device reassigned to '+val,'ok');}
+  saveState();closeModal();render();
+}
 function swapAsset(id){
   if(!canEdit())return;
   const a=state.assets.find(x=>x.id===id);if(!a)return;
   const person=a.assignedTo;
   if(!person){toast('This device isn\'t assigned to anyone','err');return;}
-  if(!confirm('Swap out this '+(a.type||'device')+(a.serial?' ('+a.serial+')':'')+' from '+person+'?\n\nThe old device returns to stock (kept in inventory), and you\'ll pick or add the replacement for '+person+' next.'))return;
+  const choice=confirm('What do you want to do with '+(a.type||'device')+(a.serial?' ('+a.serial+')':'')+'?\n\nOK = REASSIGN this same device to a different person (no duplicate)\nCancel = SWAP for a different device ('+person+' keeps needing a device, this one goes to stock)');
+  if(choice){reassignAsset(id);return;}
+  if(!confirm('Swap: '+person+' will get a DIFFERENT device, and this one ('+(a.serial||a.type)+') returns to stock. Continue?'))return;
   a.assignedTo='';a.status='In Stock';saveState();
   toast('Old device returned to stock — now choose '+person+'\'s replacement','ok');
   assignDeviceMenu(person);
@@ -796,10 +833,12 @@ function swapAsset(id){
 function swapDevice(id,name){
   if(!canEdit())return;
   const a=state.assets.find(x=>x.id===id);if(!a)return;
-  if(!confirm('Swap out this '+(a.type||'device')+(a.serial?' ('+a.serial+')':'')+' from '+name+'?\n\nThe old device returns to stock (kept in inventory), and you\'ll pick or add the replacement next.'))return;
+  const choice=confirm('What do you want to do with '+(a.type||'device')+(a.serial?' ('+a.serial+')':'')+'?\n\nOK = REASSIGN this same device to a different person (no duplicate)\nCancel = SWAP for a different device (this one goes to stock)');
+  if(choice){reassignAsset(id);return;}
+  if(!confirm('Swap: this one ('+(a.serial||a.type)+') returns to stock and you\'ll pick a replacement. Continue?'))return;
   a.assignedTo='';a.status='In Stock';saveState();
   toast('Old device returned to stock — now choose the replacement','ok');
-  assignDeviceMenu(name); // pick or add the new device
+  assignDeviceMenu(name);
 }
 function viewAsset(id){
   const a=state.assets.find(x=>x.id===id);if(!a)return;
