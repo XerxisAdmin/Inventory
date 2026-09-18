@@ -652,7 +652,7 @@ function addNewValue(which){
   if(!v)return;
   // register into config immediately
   if(which==='type'){if(!state.config.types.includes(v)){state.config.types.push(v);state.config.types.sort();}}
-  if(which==='brand'){if(!state.config.brands.includes(v)){state.config.brands.push(v);state.config.brands.sort();}}
+  if(which==='brand'){const t=(document.getElementById('f_type').value||'').trim();if(!state.config.brands.includes(v)){state.config.brands.push(v);state.config.brands.sort();}state.config.brandsByType=state.config.brandsByType||{};state.config.brandsByType[t]=state.config.brandsByType[t]||[];if(!state.config.brandsByType[t].includes(v))state.config.brandsByType[t].push(v);}
   if(which==='model'){const b=(document.getElementById('f_brand').value||'').trim();state.config.models[b]=state.config.models[b]||[];if(!state.config.models[b].includes(v)){state.config.models[b].push(v);state.config.models[b].sort();}}
   saveState();
   document.getElementById('f_'+which).value=v;
@@ -663,23 +663,24 @@ function comboSource(which){
   if(which==='type')return state.config.types||[];
   if(which==='brand'){
     const t=(document.getElementById('f_type')||{}).value;
-    if(t){
-      // brands actually used for this type; fall back to all brands if none yet
-      const used=[...new Set(state.assets.filter(a=>a.type===t&&a.brand).map(a=>a.brand))].sort();
-      return used.length?used:(state.config.brands||[]);
-    }
-    return state.config.brands||[];
+    if(!t)return (state.config.brands||[]).slice().sort();
+    // brands used for this type (from assets) + brands registered for this type (from config map)
+    let list=new Set(state.assets.filter(a=>a.type===t&&a.brand).map(a=>a.brand));
+    ((state.config.brandsByType||{})[t]||[]).forEach(x=>list.add(x));
+    return [...list].sort();
   }
   if(which==='model'){
-    const t=(document.getElementById('f_type')||{}).value;
     const b=((document.getElementById('f_brand')||{}).value||'').trim();
     if(!b)return [];
-    // models used for this brand (optionally within this type); fall back to config models for the brand
-    let used=[...new Set(state.assets.filter(a=>a.brand===b&&(!t||a.type===t)&&a.model).map(a=>a.model))].sort();
-    if(!used.length)used=(state.config.models[b]||[]);
-    return used;
+    let list=new Set(state.config.models[b]||[]);
+    state.assets.filter(a=>a.brand===b&&a.model).forEach(a=>list.add(a.model));
+    return [...list].sort();
   }
-  if(which==='supplier'){return state.config.suppliers||[...new Set(state.assets.filter(a=>a.supplier).map(a=>a.supplier))].sort();}
+  if(which==='supplier'){
+    let list=new Set(state.config.suppliers||[]);
+    state.assets.filter(a=>a.supplier).forEach(a=>list.add(a.supplier));
+    return [...list].sort();
+  }
   return [];
 }
 function comboRender(which,list){
@@ -714,6 +715,7 @@ function saveAsset(id){if(!canEdit()){toast("View-only access — editing is res
   // Register any newly-typed type/brand/model so they appear in the lists next time
   if(rec.type&&!state.config.types.includes(rec.type)){state.config.types.push(rec.type);state.config.types.sort();}
   if(rec.brand&&!state.config.brands.includes(rec.brand)){state.config.brands.push(rec.brand);state.config.brands.sort();}
+  if(rec.type&&rec.brand){state.config.brandsByType=state.config.brandsByType||{};state.config.brandsByType[rec.type]=state.config.brandsByType[rec.type]||[];if(!state.config.brandsByType[rec.type].includes(rec.brand))state.config.brandsByType[rec.type].push(rec.brand);}
   if(rec.brand&&rec.model){state.config.models[rec.brand]=state.config.models[rec.brand]||[];if(!state.config.models[rec.brand].includes(rec.model)){state.config.models[rec.brand].push(rec.model);state.config.models[rec.brand].sort();}}
   if(rec.supplier){state.config.suppliers=state.config.suppliers||[];if(!state.config.suppliers.includes(rec.supplier)){state.config.suppliers.push(rec.supplier);state.config.suppliers.sort();}}
   if(id){
