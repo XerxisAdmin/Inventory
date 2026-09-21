@@ -386,10 +386,17 @@ function genId(){return 'a'+Date.now().toString(36)+Math.random().toString(36).s
 
 /* dup serial detection */
 function dupSerials(){
-  const m={};state.assets.forEach(a=>{if(a.serial){m[a.serial]=(m[a.serial]||0)+1;}});
-  return Object.keys(m).filter(s=>m[s]>1);
+  // A serial is a duplicate only when 2+ assets of the SAME TYPE share it.
+  // (A laptop and a mouse that coincidentally share a serial string are NOT duplicates.)
+  const m={};state.assets.forEach(a=>{if(a.serial){const k=(a.type||'')+'||'+a.serial;m[k]=(m[k]||0)+1;}});
+  const dupKeys=Object.keys(m).filter(k=>m[k]>1);
+  return dupKeys.map(k=>k.split('||')[1]); // return the serials that are duplicated within a type
 }
-function isFlagged(a){return a.serial && dupSerials().includes(a.serial);}
+function isFlagged(a){
+  if(!a.serial)return false;
+  // flagged only if another asset of the SAME type shares this serial
+  return state.assets.filter(x=>x.type===a.type&&x.serial===a.serial).length>1;
+}
 
 /* ============ AUTH / MODE ============ */
 function startDemo(){MODE='demo';loadState();document.getElementById('login').classList.add('hidden');document.getElementById('app').classList.remove('hidden');document.getElementById('userName').textContent='Demo user';document.getElementById('userMode').textContent='Local demo';document.getElementById('userAv').textContent='D';nav('dashboard');}
@@ -457,11 +464,22 @@ function signOut(){if(msalInstance&&currentAccount){try{msalInstance.logoutPopup
 /* ============ NAV ============ */
 let CUR='dashboard';
 const TITLES={dashboard:['Dashboard','Inventory overview'],assets:['Assets','All tracked equipment'],employees:['People','Staff and their assignments'],import:['Import / Export','Load or extract inventory data']};
-function nav(v){
+let _refreshing=false;
+async function nav(v){
+  if(!TITLES[v])return;            // guard: ignore unknown tabs (prevents the reading-'0' error)
+  const sameTab=(CUR===v);
   CUR=v;
   document.querySelectorAll('.nav-item').forEach(b=>b.classList.toggle('active',b.dataset.view===v));
   document.getElementById('pageTitle').textContent=TITLES[v][0];
   document.getElementById('pageSub').textContent=TITLES[v][1];
+  // Re-clicking the current tab in SharePoint mode = refresh: pull the latest data first
+  if(sameTab&&MODE==='sharepoint'&&accessToken&&!_refreshing){
+    _refreshing=true;
+    const el=document.getElementById('userMode');if(el)el.textContent='SharePoint · refreshing…';
+    try{await spLoad();if(el)el.textContent='SharePoint · synced';toast('Refreshed from SharePoint','ok');}
+    catch(e){if(el)el.textContent='SharePoint · sync error';toast('Could not refresh — check connection','err');}
+    finally{_refreshing=false;}
+  }
   render();
 }
 function render(){
@@ -734,7 +752,7 @@ function saveAsset(id){if(!canEdit()){toast("View-only access — editing is res
   else{
     // Smart duplicate prevention: if this serial already exists, offer to update that record instead of creating a duplicate
     if(rec.serial){
-      const twin=state.assets.find(x=>x.serial===rec.serial);
+      const twin=state.assets.find(x=>x.serial===rec.serial&&x.type===rec.type);
       if(twin){
         const holder=twin.assignedTo?('currently assigned to '+twin.assignedTo):'currently in stock (unassigned)';
         const msg='A device with serial '+rec.serial+' already exists ('+twin.type+' '+twin.brand+' '+twin.model+', '+holder+').\n\n'+
