@@ -746,7 +746,16 @@ function saveAsset(id){if(!canEdit()){toast("View-only access — editing is res
         }
       }
     }
-    rec.id=genId();state.assets.push(rec);toast('Asset added','ok');
+    rec.id=genId();state.assets.push(rec);
+    saveState();closeModal();toast('Asset added','ok');render();
+    // Offer to keep adding — handy when kitting out a person with several devices
+    setTimeout(()=>{
+      const forWho=rec.assignedTo?(' for '+rec.assignedTo):'';
+      if(confirm('Asset added'+forWho+'.\n\nAdd another device'+forWho+'?\n\nOK = open a new blank form'+(rec.assignedTo?(' (keeps "'+rec.assignedTo+'" assigned)'):'')+'\nCancel = back to the list')){
+        openAsset('', rec.assignedTo||undefined);
+      }
+    },50);
+    return;
   }
   saveState();closeModal();render();
 }
