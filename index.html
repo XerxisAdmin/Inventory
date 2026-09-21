@@ -804,11 +804,30 @@ function doAssignExisting(name){
   a.assignedTo=name;if(a.status==='In Stock')a.status='In Use';
   saveState();toast('Device assigned to '+name,'ok');closeModal();viewEmp(name);
 }
+function activeTwin(a){
+  // another asset record with the same serial+type that is still assigned to someone else
+  if(!a.serial)return null;
+  return state.assets.find(x=>x.id!==a.id && x.serial===a.serial && x.type===a.type && x.assignedTo) || null;
+}
 function unassignDevice(id,name){
   if(!canEdit())return;
   const a=state.assets.find(x=>x.id===id);if(!a)return;
+  const twin=activeTwin(a);
+  if(twin){
+    // Same physical device already in use by someone else -> this is a stale duplicate, not a real return-to-stock
+    if(confirm('This '+(a.type||'device')+(a.serial?' ('+a.serial+')':'')+' is already in use by '+twin.assignedTo+' on another record.\n\nThat means this entry under '+name+' is a leftover duplicate — the real device is with '+twin.assignedTo+', not in stock.\n\nOK = remove this duplicate entry (keeps '+twin.assignedTo+'\u2019s record)\nCancel = do nothing')){
+      state.assets=state.assets.filter(x=>x.id!==id);saveState();toast('Duplicate entry removed — device stays with '+twin.assignedTo,'ok');viewEmp(name);
+    }
+    return;
+  }
   if(!confirm('Unassign this '+(a.type||'device')+' from '+name+'? It will return to stock.'))return;
   a.assignedTo='';a.status='In Stock';saveState();toast('Device unassigned','ok');viewEmp(name);
+}
+function deleteDeviceFromProfile(id,name){
+  if(!canEdit())return;
+  const a=state.assets.find(x=>x.id===id);if(!a)return;
+  if(!confirm('DELETE this '+(a.type||'device')+(a.serial?' ('+a.serial+')':'')+' from inventory entirely?\n\nThis removes it permanently — not just from '+name+'. Use "Unassign" (↩) instead if the device still exists and should return to stock.'))return;
+  state.assets=state.assets.filter(x=>x.id!==id);saveState();toast('Device deleted from inventory','ok');viewEmp(name);
 }
 function reassignAsset(id){
   if(!canEdit())return;
@@ -912,7 +931,8 @@ function viewEmp(name){
   const rows=assets.length?assets.map(a=>`<tr class="clickrow" onclick="closeModal();viewAsset('${a.id}')" title="View asset details">
       <td>${esc(a.type)}</td><td>${esc(a.brand)} ${esc(a.model)}</td>
       <td style="color:var(--muted)">${esc(a.serial)||'—'}</td><td>${condPill(a.condition)}</td>
-    </tr>`).join(''):`<tr><td colspan="4" style="text-align:center;color:var(--faint);padding:18px">No assets assigned</td></tr>`;
+      ${canEdit()?`<td class="actions" onclick="event.stopPropagation()"><button class="ic-btn" title="Unassign (return to stock)" onclick="unassignDevice('${a.id}','${esc(name).replace(/'/g,"\\'")}')">↩</button><button class="ic-btn del" title="Delete device from inventory" onclick="deleteDeviceFromProfile('${a.id}','${esc(name).replace(/'/g,"\\'")}')">🗑</button></td>`:''}
+    </tr>`).join(''):`<tr><td colspan="${canEdit()?5:4}" style="text-align:center;color:var(--faint);padding:18px">No assets assigned</td></tr>`;
   const initials=(e.name||'?').split(' ').map(w=>w[0]).slice(0,2).join('').toUpperCase();
   const m=`<div class="modal-bg" onclick="if(event.target===this)closeModal()"><div class="modal" style="max-width:640px">
     <div class="modal-h"><h3>Employee profile</h3><button class="btn-ghost" onclick="closeModal()">✕</button></div>
@@ -931,7 +951,7 @@ function viewEmp(name){
       </div>
       <div class="prof-sec">Assigned assets <span class="prof-count">${assets.length}</span>${canEdit()?`<button class="btn btn-sm btn-primary" style="margin-left:auto" onclick="assignDeviceMenu('${esc(e.name).replace(/'/g,"\\'")}')">+ Assign device</button>`:''}</div>
       <div class="tbl-wrap" style="box-shadow:none"><div style="overflow-x:auto"><table class="compact-tbl">
-        <thead><tr><th>Type</th><th>Brand / model</th><th>Serial</th><th>Condition</th></tr></thead>
+        <thead><tr><th>Type</th><th>Brand / model</th><th>Serial</th><th>Condition</th>${canEdit()?'<th></th>':''}</tr></thead>
         <tbody>${rows}</tbody></table></div></div>
     </div>
     <div class="modal-f">${canEdit()?`<button class="btn" onclick="closeModal();openEmp('${e.employeeId||''}','${esc(e.name).replace(/'/g,"\\'")}')">Edit details</button>`:''}<button class="btn btn-primary" onclick="closeModal()">Close</button></div>
