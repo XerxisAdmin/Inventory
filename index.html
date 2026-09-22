@@ -726,7 +726,7 @@ function openAsset(id,preAssign){const rnd=Math.random().toString(36).slice(2,8)
   const a=id?state.assets.find(x=>x.id===id):{id:'',type:'',brand:'',model:'',serial:'',condition:'New',status:preAssign?'In Use':'In Stock',assignedTo:preAssign||'',site:state.config.sites[0]||'',warrantyExpiry:'',supplier:'',cpu:'',ram:'',storage:'',gpu:'',notes:''};
   const dd=(arr,val,onch)=>arr.map(o=>`<option ${o===val?'selected':''}>${esc(o)}</option>`).join('');
   const empOpts=['',...state.employees.map(e=>e.name)];
-  const m=`<div class="modal-bg" onclick="if(event.target===this)closeModal()"><div class="modal">
+  const m=`<div class="modal-bg"><div class="modal">
     <div class="modal-h"><h3>${id?'Edit asset':'Add asset'}</h3><button class="btn-ghost" onclick="closeModal()">✕</button></div>
     <div class="modal-b">
       <div class="row2">
@@ -883,7 +883,7 @@ function assignDeviceMenu(name){
   if(!canEdit())return;
   const free=state.assets.filter(a=>!a.assignedTo);
   const opts=free.map(a=>`<option value="${a.id}">${esc(a.type)} — ${esc(a.brand)} ${esc(a.model)} ${a.serial?'('+esc(a.serial)+')':''}</option>`).join('');
-  const m=`<div class="modal-bg" onclick="if(event.target===this)closeModal()"><div class="modal" style="max-width:480px">
+  const m=`<div class="modal-bg"><div class="modal" style="max-width:480px">
     <div class="modal-h"><h3>Assign a device to ${esc(name)}</h3><button class="btn-ghost" onclick="closeModal()">✕</button></div>
     <div class="modal-b">
       <div class="field"><label>Assign an existing unassigned device</label>
@@ -936,7 +936,7 @@ function reassignAsset(id){
   const opts=['— Unassign (return to stock) —',...names];
   const listHtml=opts.map((o,i)=>`<div class="combo-opt" onmousedown="doReassign('${a.id}',${i})" data-name="${esc(o)}">${esc(o)}</div>`).join('');
   const cur=a.assignedTo||'(unassigned)';
-  const m=`<div class="modal-bg" onclick="if(event.target===this)closeModal()"><div class="modal" style="max-width:460px">
+  const m=`<div class="modal-bg"><div class="modal" style="max-width:460px">
     <div class="modal-h"><h3>Reassign device</h3><button class="btn-ghost" onclick="closeModal()">✕</button></div>
     <div class="modal-b">
       <p style="font-size:13px;color:var(--muted);margin-bottom:12px">${esc(a.type)} ${esc(a.brand)} ${esc(a.model)} ${a.serial?'('+esc(a.serial)+')':''}<br>Currently: <b>${esc(cur)}</b></p>
@@ -991,7 +991,7 @@ function viewAsset(id,returnToEmp){
   const backFn=returnToEmp?("viewEmp('"+String(returnToEmp).replace(/'/g,"\\'")+"')"):"closeModal()";
   const dupNote=flag?`<div class="flag-item" style="margin-bottom:16px"><span class="ic">⚠</span><div><b>Duplicate serial</b><p>This serial (${esc(a.serial)}) is used on more than one asset. Verify and correct.</p></div></div>`:'';
   const person=a.assignedTo?state.employees.find(e=>e.name===a.assignedTo):null;
-  const m=`<div class="modal-bg" onclick="if(event.target===this)closeModal()"><div class="modal" style="max-width:560px">
+  const m=`<div class="modal-bg"><div class="modal" style="max-width:560px">
     <div class="modal-h"><h3>Asset details</h3><button class="btn-ghost" onclick="closeModal()">✕</button></div>
     <div class="modal-b">
       <div class="prof-head">
@@ -1034,7 +1034,7 @@ function viewEmp(name){
       ${canEdit()?`<td class="actions" onclick="event.stopPropagation()"><button class="ic-btn" title="Unassign (return to stock)" onclick="unassignDevice('${a.id}','${esc(name).replace(/'/g,"\\'")}')">↩</button><button class="ic-btn del" title="Delete device from inventory" onclick="deleteDeviceFromProfile('${a.id}','${esc(name).replace(/'/g,"\\'")}')">🗑</button></td>`:''}
     </tr>`).join(''):`<tr><td colspan="${canEdit()?5:4}" style="text-align:center;color:var(--faint);padding:18px">No assets assigned</td></tr>`;
   const initials=(e.name||'?').split(' ').map(w=>w[0]).slice(0,2).join('').toUpperCase();
-  const m=`<div class="modal-bg" onclick="if(event.target===this)closeModal()"><div class="modal" style="max-width:640px">
+  const m=`<div class="modal-bg"><div class="modal" style="max-width:640px">
     <div class="modal-h"><h3>Employee profile</h3><button class="btn-ghost" onclick="closeModal()">✕</button></div>
     <div class="modal-b">
       <div class="prof-head">
@@ -1061,7 +1061,7 @@ function viewEmp(name){
 function openEmp(eid,name){
   const e=name?state.employees.find(x=>x.name===name):{employeeId:'',name:'',role:'',email:'',site:state.config.sites[0]||'',department:'',startDate:'',status:'Active'};
   const dd=(arr,val)=>arr.map(o=>`<option ${o===val?'selected':''}>${esc(o)}</option>`).join('');
-  const m=`<div class="modal-bg" onclick="if(event.target===this)closeModal()"><div class="modal">
+  const m=`<div class="modal-bg"><div class="modal">
     <div class="modal-h"><h3>${name?'Edit person':'Add person'}</h3><button class="btn-ghost" onclick="closeModal()">✕</button></div>
     <div class="modal-b">
       <div class="row2"><div class="field"><label>Employee ID</label><input id="e_employeeId" value="${esc(e.employeeId)}" placeholder="C2023-0001"></div>
