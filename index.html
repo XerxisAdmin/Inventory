@@ -77,6 +77,8 @@ input,select{font-family:inherit;font-size:14px}
 
 /* ---------- Dashboard ---------- */
 .stat-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:14px;margin-bottom:22px}
+.statclick{cursor:pointer;transition:transform .1s,box-shadow .12s}
+.statclick:hover{transform:translateY(-2px);box-shadow:0 4px 16px rgba(24,32,41,.1)}
 .stat{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:17px 18px;box-shadow:var(--shadow)}
 .stat .lbl{color:var(--muted);font-size:12.5px;font-weight:500;margin-bottom:7px;display:flex;align-items:center;gap:6px}
 .stat .val{font-family:'Space Grotesk';font-weight:700;font-size:30px;line-height:1;color:var(--ink)}
@@ -591,12 +593,12 @@ function renderDash(c){
   const byType=countBy(A,'type'),bySite=countBy(A,'site'),byCond=countBy(A,'condition');
 
   let h=`<div class="stat-grid">
-    <div class="stat accent"><div class="lbl">Total assets</div><div class="val">${A.length}</div></div>
-    <div class="stat"><div class="lbl">In use</div><div class="val sm">${inUse}</div></div>
-    <div class="stat"><div class="lbl">In stock</div><div class="val sm">${inStock}</div></div>
-    <div class="stat"><div class="lbl">Unassigned</div><div class="val sm">${unassigned}</div></div>
-    <div class="stat"><div class="lbl">People</div><div class="val sm">${E.length}</div></div>
-    ${flagged?`<div class="stat warn"><div class="lbl">⚠ Needs review</div><div class="val sm">${flagged}</div></div>`:''}
+    <div class="stat accent statclick" onclick="dashDrill('all')"><div class="lbl">Total assets</div><div class="val">${A.length}</div></div>
+    <div class="stat statclick" onclick="dashDrill('inuse')"><div class="lbl">In use</div><div class="val sm">${inUse}</div></div>
+    <div class="stat statclick" onclick="dashDrill('instock')"><div class="lbl">In stock</div><div class="val sm">${inStock}</div></div>
+    <div class="stat statclick" onclick="dashDrill('unassigned')"><div class="lbl">Unassigned</div><div class="val sm">${unassigned}</div></div>
+    <div class="stat statclick" onclick="dashDrill('people')"><div class="lbl">People</div><div class="val sm">${E.length}</div></div>
+    ${flagged?`<div class="stat warn statclick" onclick="dashDrill('flagged')"><div class="lbl">⚠ Needs review</div><div class="val sm">${flagged}</div></div>`:''}
   </div>`;
 
   h+=`<div class="two-col">
@@ -641,13 +643,25 @@ function bars(obj,total){
 }
 
 /* ============ ASSETS ============ */
-let aSearch='',aFilt={type:'',status:'',site:''},aSort={k:'type',dir:1},aSerial='';
-function reviewSerial(s){aSerial=s;aSearch='';aFilt={type:'',status:'',site:''};nav('assets');}
+let aSearch='',aFilt={type:'',status:'',site:''},aSort={k:'type',dir:1},aSerial='',aUnassigned=false;
+function reviewSerial(s){aSerial=s;aSearch='';aFilt={type:'',status:'',site:''};aUnassigned=false;nav('assets');}
 function clearSerial(){aSerial='';renderAssets(document.getElementById('content'));}
+function dashDrill(what){
+  // reset filters, then apply the one for the clicked card, then navigate
+  aSearch='';aSerial='';aUnassigned=false;aFilt={type:'',status:'',site:''};
+  if(what==='people'){nav('employees');return;}
+  if(what==='inuse')aFilt.status='In Use';
+  else if(what==='instock')aFilt.status='In Stock';
+  else if(what==='unassigned')aUnassigned=true;
+  else if(what==='flagged'){nav('dashboard');return;} // needs-review already visible on dashboard
+  // 'all' leaves everything cleared
+  nav('assets');
+}
 function renderAssets(c){
   const types=['',...state.config.types],statuses=['',...STATUSES],sites=['',...state.config.sites];
   let h='';
   if(aSerial){h+=`<div style="margin-bottom:14px"><span class="filt-note">⚠ Showing flagged assets with serial ${esc(aSerial)} <button onclick="clearSerial()">Clear</button></span></div>`;}
+  if(aUnassigned){h+=`<div style="margin-bottom:14px"><span class="filt-note">Showing unassigned assets only <button onclick="aUnassigned=false;renderAssets(document.getElementById('content'))">Clear</button></span></div>`;}
   h+=`<div class="toolbar">
     <div class="search"><span class="ic">⌕</span><input id="assetSearchInput" placeholder="Search serial, model, person…" value="${esc(aSearch)}" oninput="aSearch=this.value;toggleClear('asset');drawAssetRows()"><button class="search-clear${aSearch?' show':''}" id="assetSearchClear" title="Clear" onclick="clearSearch('asset')">✕</button></div>
     <select class="filt" onchange="aFilt.type=this.value;drawAssetRows()">${types.map(t=>`<option ${t===aFilt.type?'selected':''}>${t||'All types'}</option>`).join('')}</select>
@@ -673,6 +687,7 @@ function filteredAssets(){
   if(aFilt.type)r=r.filter(a=>a.type===aFilt.type);
   if(aFilt.status)r=r.filter(a=>a.status===aFilt.status);
   if(aFilt.site)r=r.filter(a=>a.site===aFilt.site);
+  if(aUnassigned)r=r.filter(a=>!a.assignedTo);
   r.sort((a,b)=>{const x=(a[aSort.k]||'').toLowerCase(),y=(b[aSort.k]||'').toLowerCase();return x<y?-aSort.dir:x>y?aSort.dir:0;});
   return r;
 }
