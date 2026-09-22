@@ -79,6 +79,9 @@ input,select{font-family:inherit;font-size:14px}
 .stat-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:14px;margin-bottom:22px}
 .statclick{cursor:pointer;transition:transform .1s,box-shadow .12s}
 .statclick:hover{transform:translateY(-2px);box-shadow:0 4px 16px rgba(24,32,41,.1)}
+.mlist{display:flex;flex-direction:column;gap:2px;max-height:380px;overflow-y:auto}
+.mlist-row{display:flex;align-items:center;justify-content:space-between;padding:9px 12px;border-radius:8px;font-size:13.5px}
+.mlist-row:hover{background:var(--surface2)}
 .stat{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:17px 18px;box-shadow:var(--shadow)}
 .stat .lbl{color:var(--muted);font-size:12.5px;font-weight:500;margin-bottom:7px;display:flex;align-items:center;gap:6px}
 .stat .val{font-family:'Space Grotesk';font-weight:700;font-size:30px;line-height:1;color:var(--ink)}
@@ -1148,7 +1151,57 @@ function renderImport(c){
     <button class="btn" onclick="exportCsv('employees')">↧ Export people CSV</button>
     <button class="btn" onclick="window.print()">🖨 Print / Save PDF</button>
     <button class="btn" style="margin-left:auto" onclick="resetToSeed()">↺ Reset to imported data</button>
+  </div></div>
+  <div class="panel"><div class="panel-h"><h3>Manage dropdown lists</h3></div><div class="panel-b">
+    <p style="color:var(--muted);font-size:13px;margin-bottom:12px">Clean up the values that appear in the Type, Brand, Model, and Supplier dropdowns — useful for removing typos or bad entries. Deleting a value here only removes it from the dropdown; existing assets that use it keep their value.</p>
+    <div style="display:flex;gap:11px;flex-wrap:wrap">
+      <button class="btn" onclick="manageList('type')">Manage Types</button>
+      <button class="btn" onclick="manageList('brand')">Manage Brands</button>
+      <button class="btn" onclick="manageList('model')">Manage Models</button>
+      <button class="btn" onclick="manageList('supplier')">Manage Suppliers</button>
+    </div>
   </div></div>`;
+}
+function manageList(which){
+  let items=[];
+  if(which==='type')items=(state.config.types||[]).slice();
+  else if(which==='brand')items=(state.config.brands||[]).slice();
+  else if(which==='supplier')items=(state.config.suppliers||[]).slice();
+  else if(which==='model'){
+    // models are per-brand; flatten to "Brand — Model"
+    const m=state.config.models||{};
+    Object.keys(m).forEach(b=>(m[b]||[]).forEach(mod=>items.push(b+' — '+mod)));
+  }
+  items.sort();
+  const label={type:'Types',brand:'Brands',model:'Models',supplier:'Suppliers'}[which];
+  const rows=items.length?items.map(v=>{
+    const inUse=usageCount(which,v);
+    return `<div class="mlist-row"><span>${esc(v)}${inUse?` <span style="color:var(--faint);font-size:11px">(${inUse} in use)</span>`:''}</span><button class="ic-btn del" title="Delete" onclick="deleteListValue('${which}','${esc(v).replace(/'/g,"\\'")}')">🗑</button></div>`;
+  }).join(''):`<div class="empty" style="padding:20px"><b>No ${label.toLowerCase()} yet</b></div>`;
+  const m=`<div class="modal-bg"><div class="modal" style="max-width:520px">
+    <div class="modal-h"><h3>Manage ${label}</h3><button class="btn-ghost" onclick="closeModal()">✕</button></div>
+    <div class="modal-b"><div class="mlist">${rows}</div></div>
+    <div class="modal-f"><button class="btn btn-primary" onclick="closeModal()">Done</button></div>
+  </div></div>`;
+  mount(m);
+}
+function usageCount(which,v){
+  if(which==='type')return state.assets.filter(a=>a.type===v).length;
+  if(which==='brand')return state.assets.filter(a=>a.brand===v).length;
+  if(which==='supplier')return state.assets.filter(a=>a.supplier===v).length;
+  if(which==='model'){const parts=v.split(' — ');const b=parts[0],mod=parts.slice(1).join(' — ');return state.assets.filter(a=>a.brand===b&&a.model===mod).length;}
+  return 0;
+}
+function deleteListValue(which,v){
+  if(!canEdit())return;
+  const n=usageCount(which,v);
+  const warn=n?('\n\nNote: '+n+' existing asset(s) use this value. They will keep it, but it won\'t show in the dropdown anymore.'):'';
+  if(!confirm('Remove "'+esc(v)+'" from the '+which+' list?'+warn))return;
+  if(which==='type')state.config.types=(state.config.types||[]).filter(x=>x!==v);
+  else if(which==='brand'){state.config.brands=(state.config.brands||[]).filter(x=>x!==v);if(state.config.brandsByType){Object.keys(state.config.brandsByType).forEach(t=>{state.config.brandsByType[t]=state.config.brandsByType[t].filter(x=>x!==v);});}delete (state.config.models||{})[v];}
+  else if(which==='supplier')state.config.suppliers=(state.config.suppliers||[]).filter(x=>x!==v);
+  else if(which==='model'){const parts=v.split(' — ');const b=parts[0],mod=parts.slice(1).join(' — ');if(state.config.models&&state.config.models[b])state.config.models[b]=state.config.models[b].filter(x=>x!==mod);}
+  saveState();toast('Removed from list','ok');manageList(which);
 }
 function parseCsv(txt){
   const rows=[];let i=0,f='',row=[],q=false;
