@@ -884,7 +884,7 @@ function assignDeviceMenu(name){
   const free=state.assets.filter(a=>!a.assignedTo);
   const opts=free.map(a=>`<option value="${a.id}">${esc(a.type)} — ${esc(a.brand)} ${esc(a.model)} ${a.serial?'('+esc(a.serial)+')':''}</option>`).join('');
   const m=`<div class="modal-bg"><div class="modal" style="max-width:480px">
-    <div class="modal-h"><h3>Assign a device to ${esc(name)}</h3><button class="btn-ghost" onclick="closeModal()">✕</button></div>
+    <div class="modal-h"><h3>Assign a device to ${esc(name)}</h3><button class="btn-ghost" onclick="viewEmp('${esc(name).replace(/'/g,"\\'")}')">✕</button></div>
     <div class="modal-b">
       <div class="field"><label>Assign an existing unassigned device</label>
         ${free.length?`<select id="assignPick">${opts}</select>`:'<p style="color:var(--muted);font-size:13px">No unassigned devices in stock. Add a new one below.</p>'}
@@ -893,6 +893,7 @@ function assignDeviceMenu(name){
       <div style="text-align:center;color:var(--faint);font-size:12px;margin:10px 0">or</div>
       <button class="btn" style="width:100%" onclick="closeModal();openAsset('','${esc(name).replace(/'/g,"\\'")}')">+ Add a brand-new device for ${esc(name)}</button>
     </div>
+    <div class="modal-f"><button class="btn" onclick="viewEmp('${esc(name).replace(/'/g,"\\'")}')">← Back to profile</button></div>
   </div></div>`;
   mount(m);
 }
@@ -1073,7 +1074,7 @@ function openEmp(eid,name){
       <div class="row2"><div class="field"><label>Department <span style="font-weight:400;color:var(--faint)">(optional)</span></label><input id="e_department" value="${esc(e.department||'')}"></div>
       <div class="field"><label>Start date <span style="font-weight:400;color:var(--faint)">(optional)</span></label><input id="e_startDate" type="date" value="${esc(e.startDate||'')}"></div></div>
     </div>
-    <div class="modal-f"><button class="btn" onclick="closeModal()">Cancel</button><button class="btn btn-primary" onclick="saveEmp('${name?esc(name).replace(/'/g,"\\'"):''}')">${name?'Save changes':'Add person'}</button></div>
+    <div class="modal-f"><button class="btn" onclick="${name?"viewEmp('"+esc(name).replace(/'/g,"\\'")+"')":"closeModal()"}">Cancel</button><button class="btn btn-primary" onclick="saveEmp('${name?esc(name).replace(/'/g,"\\'"):''}')">${name?'Save changes':'Add person'}</button></div>
   </div></div>`;
   mount(m);
 }
@@ -1102,7 +1103,9 @@ function saveEmp(origName){if(!canEdit()){toast("View-only access — editing is
     } else { toast('Person updated','ok'); }
   }
   else{state.employees.push(rec);toast('Person added','ok');}
-  saveState();closeModal();render();
+  saveState();
+  if(origName){viewEmp(rec.name);}   // editing -> return to the (updated) profile
+  else{closeModal();render();}        // adding a new person -> back to the list
 }
 function delEmp(name){if(!canEdit()){toast("View-only access — editing is restricted","err");return;}const e=state.employees.find(x=>x.name===name);const cnt=assetsFor(name).length;if(!confirm('Delete '+name+'?'+(cnt?'\n\n'+cnt+' assigned asset(s) will become Unassigned.':'')))return;state.assets.forEach(a=>{if(a.assignedTo&&sameName(a.assignedTo,name))a.assignedTo='';});state.employees=state.employees.filter(x=>x.name!==name);saveState();toast('Person deleted','ok');render();}
 
