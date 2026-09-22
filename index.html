@@ -735,7 +735,7 @@ function openAsset(id,preAssign){const rnd=Math.random().toString(36).slice(2,8)
       </div>
       <div class="row2">
         <div class="field"><label>Model</label><div class="combo-wrap"><div class="combo"><input id="f_model" name="f_model_${rnd}" autocomplete="new-password" autocorrect="off" autocapitalize="off" spellcheck="false" value="${esc(a.model)}" placeholder="Pick or type a new model" oninput="comboFilter('model')" onfocus="comboOpenAll('model')" onblur="comboBlur('model')"><div class="combo-list" id="combo_model"></div></div><button type="button" class="new-btn" onclick="addNewValue('model')">+ New</button></div><span class="dd-hint">Pick from the list, type, or click + New</span></div>
-        <div class="field"><label>Serial (asset tag)</label><input id="f_serial" value="${esc(a.serial)}" placeholder="e.g. PF5E9CDC"></div>
+        <div class="field"><label>Serial (asset tag)</label><input id="f_serial" value="${esc(a.serial)}" placeholder="e.g. PF5E9CDC" oninput="this.value=this.value.toUpperCase()" style="text-transform:uppercase"></div>
       </div>
       <div class="row2">
         <div class="field"><label>Condition</label><select id="f_condition">${dd(CONDITIONS,a.condition)}</select></div>
@@ -985,9 +985,10 @@ function swapDevice(id,name){
   toast('Old device returned to stock — now choose the replacement','ok');
   assignDeviceMenu(name);
 }
-function viewAsset(id){
+function viewAsset(id,returnToEmp){
   const a=state.assets.find(x=>x.id===id);if(!a)return;
   const flag=isFlagged(a);
+  const backFn=returnToEmp?("viewEmp('"+String(returnToEmp).replace(/'/g,"\\'")+"')"):"closeModal()";
   const dupNote=flag?`<div class="flag-item" style="margin-bottom:16px"><span class="ic">⚠</span><div><b>Duplicate serial</b><p>This serial (${esc(a.serial)}) is used on more than one asset. Verify and correct.</p></div></div>`:'';
   const person=a.assignedTo?state.employees.find(e=>e.name===a.assignedTo):null;
   const m=`<div class="modal-bg" onclick="if(event.target===this)closeModal()"><div class="modal" style="max-width:560px">
@@ -1019,7 +1020,7 @@ function viewAsset(id){
     <div class="modal-f">
       ${canEdit()&&a.assignedTo?`<button class="btn" onclick="closeModal();swapAsset('${a.id}')">⇄ Swap</button>`:''}
       ${canEdit()?`<button class="btn" onclick="closeModal();openAsset('${a.id}')">Edit</button>`:''}
-      <button class="btn btn-primary" onclick="closeModal()">Close</button>
+      <button class="btn btn-primary" onclick="${backFn}">${returnToEmp?'Back':'Close'}</button>
     </div>
   </div></div>`;
   mount(m);
@@ -1027,7 +1028,7 @@ function viewAsset(id){
 function viewEmp(name){
   const e=state.employees.find(x=>x.name===name);if(!e)return;
   const assets=assetsFor(name);
-  const rows=assets.length?assets.map(a=>`<tr class="clickrow" onclick="closeModal();viewAsset('${a.id}')" title="View asset details">
+  const rows=assets.length?assets.map(a=>`<tr class="clickrow" onclick="viewAsset('${a.id}','${esc(name).replace(/'/g,"\\'")}')" title="View asset details">
       <td>${esc(a.type)}</td><td>${esc(a.brand)} ${esc(a.model)}</td>
       <td style="color:var(--muted)">${esc(a.serial)||'—'}</td><td>${condPill(a.condition)}</td>
       ${canEdit()?`<td class="actions" onclick="event.stopPropagation()"><button class="ic-btn" title="Unassign (return to stock)" onclick="unassignDevice('${a.id}','${esc(name).replace(/'/g,"\\'")}')">↩</button><button class="ic-btn del" title="Delete device from inventory" onclick="deleteDeviceFromProfile('${a.id}','${esc(name).replace(/'/g,"\\'")}')">🗑</button></td>`:''}
