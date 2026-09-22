@@ -722,7 +722,7 @@ function drawEmpRows(){
 }
 
 /* ============ MODALS: ASSET ============ */
-function openAsset(id,preAssign){const rnd=Math.random().toString(36).slice(2,8);
+function openAsset(id,preAssign,returnEmp){const rnd=Math.random().toString(36).slice(2,8);
   const a=id?state.assets.find(x=>x.id===id):{id:'',type:'',brand:'',model:'',serial:'',condition:'New',status:preAssign?'In Use':'In Stock',assignedTo:preAssign||'',site:state.config.sites[0]||'',warrantyExpiry:'',supplier:'',cpu:'',ram:'',storage:'',gpu:'',notes:''};
   const dd=(arr,val,onch)=>arr.map(o=>`<option ${o===val?'selected':''}>${esc(o)}</option>`).join('');
   const empOpts=['',...state.employees.map(e=>e.name)];
@@ -760,7 +760,7 @@ function openAsset(id,preAssign){const rnd=Math.random().toString(36).slice(2,8)
       </div>
       <div class="field"><label>Notes</label><textarea id="f_notes">${esc(a.notes)}</textarea></div>
     </div>
-    <div class="modal-f"><button class="btn" onclick="closeModal()">Cancel</button><button class="btn btn-primary" onclick="saveAsset('${a.id}')">${id?'Save changes':'Add asset'}</button></div>
+    <div class="modal-f"><button class="btn" onclick="${returnEmp?"viewEmp('"+String(returnEmp).replace(/'/g,"\\'")+"')":"closeModal()"}">Cancel</button><button class="btn btn-primary" onclick="saveAsset('${a.id}','${returnEmp?String(returnEmp).replace(/'/g,"\\'"):''}')">${id?'Save changes':'Add asset'}</button></div>
   </div></div>`;
   mount(m);
 }
@@ -829,7 +829,9 @@ function comboBlur(which){setTimeout(()=>{const box=document.getElementById('com
 function syncModels(){/* model list is derived live from brand in comboSource; clear stale model dropdown */const box=document.getElementById('combo_model');if(box)box.classList.remove('open');}
 function addModel(){const b=document.getElementById('f_brand').value;const v=prompt('New model for '+b+':');if(!v)return;state.config.models[b]=state.config.models[b]||[];if(!state.config.models[b].includes(v))state.config.models[b].push(v);saveState();syncModels();document.getElementById('f_model').value=v;}
 function addOpt(key,fid){const v=prompt('Add new '+key.slice(0,-1)+':');if(!v)return;if(!state.config[key].includes(v)){state.config[key].push(v);state.config[key].sort();saveState();}const sel=document.getElementById(fid);sel.innerHTML=state.config[key].map(o=>`<option ${o===v?'selected':''}>${esc(o)}</option>`).join('');}
-function saveAsset(id){if(!canEdit()){toast("View-only access — editing is restricted","err");return;}
+function saveAsset(id,returnEmp){if(!canEdit()){toast("View-only access — editing is restricted","err");return;}
+  returnEmp=returnEmp||'';
+  const backTo=()=>{ if(returnEmp){viewEmp(returnEmp);} else {closeModal();render();} };
   const g=k=>{const el=document.getElementById('f_'+k);let v=el?el.value:'';if(v==='— Unassigned —')v='';return v.trim();};
   const rec={type:g('type'),brand:g('brand'),model:g('model'),serial:g('serial'),condition:g('condition'),status:g('status'),assignedTo:g('assignedTo'),site:g('site'),warrantyExpiry:g('warrantyExpiry'),supplier:g('supplier'),cpu:g('cpu'),ram:g('ram'),storage:g('storage'),gpu:g('gpu'),notes:g('notes')};
   if(!rec.type){toast('Type is required','err');return;}
@@ -846,7 +848,7 @@ function saveAsset(id){if(!canEdit()){toast("View-only access — editing is res
       const who=existing.assignedTo?(' assigned to '+existing.assignedTo):'';
       if(!confirm('You are changing the serial from '+existing.serial+' to '+rec.serial+'.\n\nThis REPLACES the existing asset'+who+' — the old device ('+existing.serial+') will no longer exist in inventory.\n\nIf this person is swapping to a different laptop, cancel and use "Swap device" on their profile instead, so the old one returns to stock.\n\nContinue replacing this record anyway?'))return;
     }
-    Object.assign(existing,rec);toast('Asset updated','ok');
+    Object.assign(existing,rec);saveState();toast('Asset updated','ok');backTo();return;
   }
   else{
     // Smart duplicate prevention: if this serial already exists, offer to update that record instead of creating a duplicate
@@ -859,22 +861,21 @@ function saveAsset(id){if(!canEdit()){toast("View-only access — editing is res
           'OK = update the existing record (recommended, no duplicate)\nCancel = keep them separate (creates a duplicate)';
         if(confirm(msg)){
           Object.assign(twin,rec,{id:twin.id});
-          saveState();closeModal();toast('Existing device updated — no duplicate created','ok');render();return;
+          saveState();toast('Existing device updated — no duplicate created','ok');backTo();return;
         }
       }
     }
     rec.id=genId();state.assets.push(rec);
-    saveState();closeModal();toast('Asset added','ok');render();
+    saveState();toast('Asset added','ok');
     // Offer to keep adding — handy when kitting out a person with several devices
-    setTimeout(()=>{
-      const forWho=rec.assignedTo?(' for '+rec.assignedTo):'';
-      if(confirm('Asset added'+forWho+'.\n\nAdd another device'+forWho+'?\n\nOK = open a new blank form'+(rec.assignedTo?(' (keeps "'+rec.assignedTo+'" assigned)'):'')+'\nCancel = back to the list')){
-        openAsset('', rec.assignedTo||undefined);
-      }
-    },50);
+    const forWho=rec.assignedTo?(' for '+rec.assignedTo):'';
+    if(confirm('Asset added'+forWho+'.\n\nAdd another device'+forWho+'?\n\nOK = open a new blank form'+(rec.assignedTo?(' (keeps "'+rec.assignedTo+'" assigned)'):'')+'\nCancel = '+(returnEmp?'back to '+returnEmp+'\u2019s profile':'back to the list'))){
+      openAsset('', rec.assignedTo||undefined, returnEmp);
+    } else {
+      backTo();
+    }
     return;
   }
-  saveState();closeModal();render();
 }
 function delAsset(id){if(!canEdit()){toast("View-only access — editing is restricted","err");return;}const a=state.assets.find(x=>x.id===id);if(!confirm('Delete this '+(a.type||'asset')+(a.serial?' ('+a.serial+')':'')+'?'))return;state.assets=state.assets.filter(x=>x.id!==id);saveState();toast('Asset deleted','ok');render();}
 
@@ -891,7 +892,7 @@ function assignDeviceMenu(name){
       </div>
       ${free.length?`<button class="btn btn-primary" style="width:100%;margin-bottom:8px" onclick="doAssignExisting('${esc(name).replace(/'/g,"\\'")}')">Assign selected device</button>`:''}
       <div style="text-align:center;color:var(--faint);font-size:12px;margin:10px 0">or</div>
-      <button class="btn" style="width:100%" onclick="closeModal();openAsset('','${esc(name).replace(/'/g,"\\'")}')">+ Add a brand-new device for ${esc(name)}</button>
+      <button class="btn" style="width:100%" onclick="closeModal();openAsset('','${esc(name).replace(/'/g,"\\'")}','${esc(name).replace(/'/g,"\\'")}')">+ Add a brand-new device for ${esc(name)}</button>
     </div>
     <div class="modal-f"><button class="btn" onclick="viewEmp('${esc(name).replace(/'/g,"\\'")}')">← Back to profile</button></div>
   </div></div>`;
@@ -1020,7 +1021,7 @@ function viewAsset(id,returnToEmp){
     </div>
     <div class="modal-f">
       ${canEdit()&&a.assignedTo?`<button class="btn" onclick="closeModal();swapAsset('${a.id}')">⇄ Swap</button>`:''}
-      ${canEdit()?`<button class="btn" onclick="closeModal();openAsset('${a.id}')">Edit</button>`:''}
+      ${canEdit()?`<button class="btn" onclick="closeModal();openAsset('${a.id}',undefined,${returnToEmp?"'"+String(returnToEmp).replace(/'/g,"\\'")+"'":'undefined'})">Edit</button>`:''}
       <button class="btn btn-primary" onclick="${backFn}">${returnToEmp?'Back':'Close'}</button>
     </div>
   </div></div>`;
