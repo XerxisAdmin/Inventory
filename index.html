@@ -460,33 +460,69 @@ async function spResolveSite(){
 }
 function spFileUrl(){return 'https://graph.microsoft.com/v1.0/sites/'+SP_SITE_ID+'/drive/root:/'+FILE_NAME+':/content';}
 async function spLoad(){
-  const r=await fetch(spFileUrl(),{headers:{Authorization:'Bearer '+accessToken}});
+  await getFreshToken();
+  let r=await fetch(spFileUrl(),{headers:{Authorization:'Bearer '+accessToken}});
+  if(r.status===401){await getFreshToken();r=await fetch(spFileUrl(),{headers:{Authorization:'Bearer '+accessToken}});}
   if(r.status===404){await spSave();return;} // first run: seed the shared file from current data
   if(!r.ok)throw new Error('Load failed (HTTP '+r.status+')');
   const data=await r.json();
   if(data&&data.assets){state=data;try{localStorage.setItem(LS_KEY,JSON.stringify(state));}catch(e){}}
 }
+// Silently get a fresh (non-expired) access token from the cached MSAL session
+async function getFreshToken(){
+  if(!msalInstance)return accessToken;
+  const accts=msalInstance.getAllAccounts();
+  if(!accts.length)throw new Error('No signed-in account');
+  try{
+    const res=await msalInstance.acquireTokenSilent({scopes:SCOPES,account:accts[0]});
+    accessToken=res.accessToken;currentAccount=res.account;
+    return accessToken;
+  }catch(e){
+    // silent refresh failed (session truly expired) -> need interactive sign-in
+    throw new Error('SESSION_EXPIRED');
+  }
+}
 async function spSave(){
-  if(MODE!=='sharepoint'||!accessToken)return;
+  if(MODE!=='sharepoint')return;
+  await getFreshToken();            // always refresh the token before saving (fixes idle-expiry data loss)
   await spResolveSite();
-  const r=await fetch(spFileUrl(),{method:'PUT',headers:{Authorization:'Bearer '+accessToken,'Content-Type':'application/json'},body:JSON.stringify(state)});
+  let r=await fetch(spFileUrl(),{method:'PUT',headers:{Authorization:'Bearer '+accessToken,'Content-Type':'application/json'},body:JSON.stringify(state)});
+  if(r.status===401){               // token rejected mid-flight -> refresh once and retry
+    await getFreshToken();
+    r=await fetch(spFileUrl(),{method:'PUT',headers:{Authorization:'Bearer '+accessToken,'Content-Type':'application/json'},body:JSON.stringify(state)});
+  }
   if(!r.ok)throw new Error('Save failed (HTTP '+r.status+')');
 }
 /* ---- Reliable save engine ---- */
 let _dirty=false;        // there are local changes not yet confirmed saved to SharePoint
 let _saving=false;       // a save is currently uploading
 let _saveQueued=false;   // a change arrived while saving -> save again after
+let _reauthPrompted=false;
 function scheduleSpSync(){clearTimeout(spSyncTimer);spSyncTimer=setTimeout(runSpSave,400);}
 async function runSpSave(){
-  if(MODE!=='sharepoint'||!accessToken)return;
+  if(MODE!=='sharepoint')return;
   if(_saving){_saveQueued=true;return;}   // one save at a time; queue another
   _saving=true;updateSyncBadge();
   try{
     await spSave();
-    _dirty=false;
+    _dirty=false;_reauthPrompted=false;
   }catch(e){
     console.error('save failed',e);
     _dirty=true;   // keep marked dirty so it retries / warns
+    // If the session fully expired, the token can't be refreshed silently -> ask the user to sign in again.
+    // Their work is safe locally; a re-sign-in will let the queued save go through.
+    if(e&&e.message==='SESSION_EXPIRED'&&!_reauthPrompted){
+      _reauthPrompted=true;
+      const el=document.getElementById('userMode');if(el)el.textContent='SharePoint · sign in to save';
+      if(confirm('Your Microsoft session expired while the app was idle, so your recent changes are NOT yet saved to SharePoint.\n\nYour work is safe on this device. Sign in again now to save it to SharePoint?')){
+        try{
+          const res=await msalInstance.acquireTokenPopup({scopes:SCOPES});
+          accessToken=res.accessToken;currentAccount=res.account;
+          _reauthPrompted=false;
+          scheduleSpSync(); // retry the save now that we're re-authenticated
+        }catch(err){toast('Sign-in needed to save your changes','err');}
+      }
+    }
   }finally{
     _saving=false;updateSyncBadge();
     if(_saveQueued){_saveQueued=false;scheduleSpSync();}  // flush the change that came in mid-save
