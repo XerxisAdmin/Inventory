@@ -713,9 +713,10 @@ function statusPill(s){const m={'In Use':'inuse','In Stock':'instock','Under Rep
 function condPill(c){const m={'New':'new','Good':'good','Fair':'fair','Damaged':'damaged'};return `<span class="pill ${m[c]||'good'}">${esc(c)||'—'}</span>`;}
 
 /* ============ EMPLOYEES ============ */
-let eSearch='',eSort={k:'employeeId',dir:1};
+let eSearch='',eSort={k:'employeeId',dir:1},eSite='';
 function renderEmps(c){
-  let h=`<div class="toolbar"><div class="search"><span class="ic">⌕</span><input id="empSearchInput" placeholder="Search name, role, email…" value="${esc(eSearch)}" oninput="eSearch=this.value;toggleClear('emp');drawEmpRows()"><button class="search-clear${eSearch?' show':''}" id="empSearchClear" title="Clear" onclick="clearSearch('emp')">✕</button></div></div>
+  const sites=['',...(state.config.sites||[])];
+  let h=`<div class="toolbar"><div class="search"><span class="ic">⌕</span><input id="empSearchInput" placeholder="Search name, role, email…" value="${esc(eSearch)}" oninput="eSearch=this.value;toggleClear('emp');drawEmpRows()"><button class="search-clear${eSearch?' show':''}" id="empSearchClear" title="Clear" onclick="clearSearch('emp')">✕</button></div><select class="filt" onchange="eSite=this.value;drawEmpRows()">${sites.map(s=>`<option ${s===eSite?'selected':''}>${s||'All sites'}</option>`).join('')}</select></div>
   <div class="tbl-wrap"><div class="tbl-scroll"><table>
     <thead><tr>${the('employeeId','ID')}${the('name','Name')}${the('role','Role')}${the('email','Email')}${the('site','Site')}<th style="text-align:right">Actions</th></tr></thead>
     <tbody id="empBody"></tbody></table></div><div class="tbl-foot" id="empFoot"></div></div>`;
@@ -726,6 +727,7 @@ function sortEmp(k){if(eSort.k===k)eSort.dir*=-1;else{eSort.k=k;eSort.dir=1;}ren
 function drawEmpRows(){
   let r=state.employees.slice();const q=eSearch.trim().toLowerCase();
   if(q)r=r.filter(e=>[e.name,e.role,e.email,e.employeeId].some(v=>(v||'').toLowerCase().includes(q)));
+  if(eSite)r=r.filter(e=>e.site===eSite);
   r.sort((a,b)=>{const x=(a[eSort.k]||'').toLowerCase(),y=(b[eSort.k]||'').toLowerCase();return x<y?-eSort.dir:x>y?eSort.dir:0;});
   const body=document.getElementById('empBody');if(!body)return;
   if(!r.length){body.innerHTML=`<tr><td colspan="6"><div class="empty"><span class="ic">◉</span><b>No matching people</b></div></td></tr>`;}
