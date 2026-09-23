@@ -636,6 +636,30 @@ function renderDash(c){
     h+=`<div class="empty" style="padding:24px"><span class="ic">✓</span><b>No issues found</b>Every serial is unique and every assignment matches a person.</div>`;
   }
   h+=`</div></div></div>`;
+
+  // Warranty status panel (laptops with a warranty date filled in)
+  const wLaptops=A.filter(a=>a.type==='Laptop'&&a.warrantyExpiry);
+  const todayStr=new Date().toISOString().slice(0,7); // YYYY-MM
+  const soon=new Date();soon.setMonth(soon.getMonth()+3);const soonStr=soon.toISOString().slice(0,7);
+  const expired=wLaptops.filter(a=>a.warrantyExpiry.slice(0,7)<todayStr);
+  const expiringSoon=wLaptops.filter(a=>a.warrantyExpiry.slice(0,7)>=todayStr&&a.warrantyExpiry.slice(0,7)<=soonStr);
+  h+=`<div class="panel"><div class="panel-h"><h3>Laptop warranty status</h3><button class="btn btn-sm" onclick="nav('import')">Generate report →</button></div><div class="panel-b">`;
+  if(!wLaptops.length){
+    h+=`<div class="empty" style="padding:20px"><b>No warranty dates recorded yet</b>Add a warranty expiry on a laptop (in its edit form) and it will be tracked here.</div>`;
+  }else{
+    h+=`<div class="stat-grid" style="margin-bottom:16px">
+      <div class="stat warn statclick" onclick="reviewWarranty('expired')"><div class="lbl">⚠ Warranty expired</div><div class="val sm">${expired.length}</div></div>
+      <div class="stat statclick" onclick="reviewWarranty('soon')"><div class="lbl">Expiring ≤ 3 months</div><div class="val sm">${expiringSoon.length}</div></div>
+      <div class="stat"><div class="lbl">Warranties tracked</div><div class="val sm">${wLaptops.length}</div></div>
+    </div>`;
+    if(expired.length){
+      h+=`<div style="font-size:12.5px;color:var(--muted);margin-bottom:6px">Expired warranties:</div>`;
+      expired.sort((a,b)=>a.warrantyExpiry.localeCompare(b.warrantyExpiry)).forEach(a=>{
+        h+=`<div class="flag-item" style="background:var(--red-bg);border-color:#eccc8a"><span class="ic" style="color:var(--red)">⚠</span><div style="flex:1"><b>${esc(a.brand)} ${esc(a.model)} — ${esc(a.serial)||'no serial'}</b><p>Assigned to ${esc(a.assignedTo||'unassigned')} · ${esc(a.site)} · warranty expired ${fmtMonth(a.warrantyExpiry)}</p></div></div>`;
+      });
+    }
+  }
+  h+=`</div></div>`;
   c.innerHTML=h;
   requestAnimationFrame(()=>document.querySelectorAll('.bar-fill').forEach(b=>b.style.width=b.dataset.w+'%'));
 }
@@ -646,8 +670,9 @@ function bars(obj,total){
 }
 
 /* ============ ASSETS ============ */
-let aSearch='',aFilt={type:'',status:'',site:''},aSort={k:'type',dir:1},aSerial='',aUnassigned=false;
-function reviewSerial(s){aSerial=s;aSearch='';aFilt={type:'',status:'',site:''};aUnassigned=false;nav('assets');}
+let aSearch='',aFilt={type:'',status:'',site:''},aSort={k:'type',dir:1},aSerial='',aUnassigned=false,aWarranty='';
+function reviewSerial(s){aSerial=s;aSearch='';aFilt={type:'',status:'',site:''};aUnassigned=false;aWarranty='';nav('assets');}
+function reviewWarranty(which){aWarranty=which;aSerial='';aSearch='';aUnassigned=false;aFilt={type:'',status:'',site:''};nav('assets');}
 function clearSerial(){aSerial='';renderAssets(document.getElementById('content'));}
 function dashDrill(what){
   // reset filters, then apply the one for the clicked card, then navigate
@@ -665,6 +690,7 @@ function renderAssets(c){
   let h='';
   if(aSerial){h+=`<div style="margin-bottom:14px"><span class="filt-note">⚠ Showing flagged assets with serial ${esc(aSerial)} <button onclick="clearSerial()">Clear</button></span></div>`;}
   if(aUnassigned){h+=`<div style="margin-bottom:14px"><span class="filt-note">Showing unassigned assets only <button onclick="aUnassigned=false;renderAssets(document.getElementById('content'))">Clear</button></span></div>`;}
+  if(aWarranty){h+=`<div style="margin-bottom:14px"><span class="filt-note">⚠ Showing laptops with ${aWarranty==='expired'?'expired':'soon-to-expire'} warranty <button onclick="aWarranty='';renderAssets(document.getElementById('content'))">Clear</button></span></div>`;}
   h+=`<div class="toolbar">
     <div class="search"><span class="ic">⌕</span><input id="assetSearchInput" placeholder="Search serial, model, person…" value="${esc(aSearch)}" oninput="aSearch=this.value;toggleClear('asset');drawAssetRows()"><button class="search-clear${aSearch?' show':''}" id="assetSearchClear" title="Clear" onclick="clearSearch('asset')">✕</button></div>
     <select class="filt" onchange="aFilt.type=this.value;drawAssetRows()">${types.map(t=>`<option ${t===aFilt.type?'selected':''}>${t||'All types'}</option>`).join('')}</select>
@@ -691,6 +717,12 @@ function filteredAssets(){
   if(aFilt.status)r=r.filter(a=>a.status===aFilt.status);
   if(aFilt.site)r=r.filter(a=>a.site===aFilt.site);
   if(aUnassigned)r=r.filter(a=>!a.assignedTo);
+  if(aWarranty){
+    const todayStr=new Date().toISOString().slice(0,7);
+    const soon=new Date();soon.setMonth(soon.getMonth()+3);const soonStr=soon.toISOString().slice(0,7);
+    if(aWarranty==='expired')r=r.filter(a=>a.type==='Laptop'&&a.warrantyExpiry&&a.warrantyExpiry.slice(0,7)<todayStr);
+    else if(aWarranty==='soon')r=r.filter(a=>a.type==='Laptop'&&a.warrantyExpiry&&a.warrantyExpiry.slice(0,7)>=todayStr&&a.warrantyExpiry.slice(0,7)<=soonStr);
+  }
   r.sort((a,b)=>{const x=(a[aSort.k]||'').toLowerCase(),y=(b[aSort.k]||'').toLowerCase();return x<y?-aSort.dir:x>y?aSort.dir:0;});
   return r;
 }
@@ -1161,6 +1193,10 @@ function renderImport(c){
       <select id="reportSite" class="filt">${(state.config.sites||[]).map(s=>`<option>${esc(s)}</option>`).join('')}<option>All sites</option></select>
       <button class="btn btn-primary" onclick="generateSiteReport()">📄 Generate Word report</button>
     </div>
+    <div style="margin-top:14px;padding-top:14px;border-top:1px solid var(--border)">
+      <p style="color:var(--muted);font-size:13px;margin-bottom:10px">Laptops with expired warranty — for management / replacement planning.</p>
+      <button class="btn btn-primary" onclick="generateWarrantyReport()">📄 Generate expired-warranty report (Word)</button>
+    </div>
   </div></div>
   <div class="panel"><div class="panel-h"><h3>Manage dropdown lists</h3></div><div class="panel-b">
     <p style="color:var(--muted);font-size:13px;margin-bottom:12px">Clean up the values that appear in the Type, Brand, Model, and Supplier dropdowns — useful for removing typos or bad entries.</p>
@@ -1171,6 +1207,42 @@ function renderImport(c){
       <button class="btn" onclick="manageList('supplier')">Manage Suppliers</button>
     </div>
   </div></div>`;
+}
+function generateWarrantyReport(){
+  const today=new Date().toISOString().slice(0,10);
+  const todayStr=today.slice(0,7);
+  const esc2=s=>String(s==null?'':s).replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
+  const expired=state.assets.filter(a=>a.type==='Laptop'&&a.warrantyExpiry&&a.warrantyExpiry.slice(0,7)<todayStr)
+    .sort((a,b)=>a.warrantyExpiry.localeCompare(b.warrantyExpiry));
+  if(!expired.length){toast('No laptops with expired warranty found','err');return;}
+  const rows=expired.map(a=>`<tr>
+      <td>${esc2(a.brand)} ${esc2(a.model)}</td>
+      <td>${esc2(a.serial)||'—'}</td>
+      <td>${esc2(a.assignedTo)||'Unassigned'}</td>
+      <td>${esc2(a.site)}</td>
+      <td>${esc2(a.condition)}</td>
+      <td style="color:#c0392b;font-weight:bold">${fmtMonth(a.warrantyExpiry)}</td>
+    </tr>`).join('');
+  const html=`<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" xmlns="http://www.w3.org/TR/REC-html40">
+<head><meta charset="utf-8"><title>Expired Warranty Report</title></head>
+<body style="font-family:Calibri,Arial,sans-serif;color:#182029">
+  <h1 style="color:#1F3864;font-size:20pt;margin-bottom:2px">Laptops with Expired Warranty</h1>
+  <p style="color:#555;font-size:11pt;margin-top:0">Dedale Intelligence — IT Administration</p>
+  <p style="font-size:11pt"><b>Total expired:</b> ${expired.length}&nbsp;&nbsp;|&nbsp;&nbsp;<b>Generated:</b> ${today}</p>
+  <hr>
+  <table border="1" cellspacing="0" cellpadding="6" style="border-collapse:collapse;width:100%;font-size:10pt">
+    <thead><tr style="background:#F2F5F4">
+      <th align="left">Brand / Model</th><th align="left">Serial</th><th align="left">Assigned To</th><th align="left">Site</th><th align="left">Condition</th><th align="left">Warranty Expired</th>
+    </tr></thead>
+    <tbody>${rows}</tbody>
+  </table>
+  <hr>
+  <p style="font-size:9pt;color:#888">Generated from the Dedale IT Asset Inventory system on ${today}. Lists laptops whose recorded warranty expiry date has passed.</p>
+</body></html>`;
+  const blob=new Blob(['\ufeff'+html],{type:'application/msword'});
+  const url=URL.createObjectURL(blob);const a=document.createElement('a');
+  a.href=url;a.download='Dedale-Expired-Warranty-Laptops-'+today+'.doc';a.click();URL.revokeObjectURL(url);
+  toast('Expired-warranty report generated','ok');
 }
 function generateSiteReport(){
   const site=document.getElementById('reportSite').value;
