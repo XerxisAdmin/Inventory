@@ -1154,8 +1154,16 @@ function renderImport(c){
     <button class="btn" onclick="window.print()">🖨 Print / Save PDF</button>
     <button class="btn" style="margin-left:auto" onclick="resetToSeed()">↺ Reset to imported data</button>
   </div></div>
+  <div class="panel"><div class="panel-h"><h3>Reports</h3></div><div class="panel-b">
+    <p style="color:var(--muted);font-size:13px;margin-bottom:12px">Generate a Word document listing people at a site and the devices assigned to each — ready to send (e.g. to Rambo for Manila).</p>
+    <div style="display:flex;gap:11px;flex-wrap:wrap;align-items:center">
+      <label style="font-size:13px;font-weight:600;color:var(--muted)">Site:</label>
+      <select id="reportSite" class="filt">${(state.config.sites||[]).map(s=>`<option>${esc(s)}</option>`).join('')}<option>All sites</option></select>
+      <button class="btn btn-primary" onclick="generateSiteReport()">📄 Generate Word report</button>
+    </div>
+  </div></div>
   <div class="panel"><div class="panel-h"><h3>Manage dropdown lists</h3></div><div class="panel-b">
-    <p style="color:var(--muted);font-size:13px;margin-bottom:12px">Clean up the values that appear in the Type, Brand, Model, and Supplier dropdowns — useful for removing typos or bad entries. Deleting a value here only removes it from the dropdown; existing assets that use it keep their value.</p>
+    <p style="color:var(--muted);font-size:13px;margin-bottom:12px">Clean up the values that appear in the Type, Brand, Model, and Supplier dropdowns — useful for removing typos or bad entries.</p>
     <div style="display:flex;gap:11px;flex-wrap:wrap">
       <button class="btn" onclick="manageList('type')">Manage Types</button>
       <button class="btn" onclick="manageList('brand')">Manage Brands</button>
@@ -1163,6 +1171,59 @@ function renderImport(c){
       <button class="btn" onclick="manageList('supplier')">Manage Suppliers</button>
     </div>
   </div></div>`;
+}
+function generateSiteReport(){
+  const site=document.getElementById('reportSite').value;
+  const allSites=(site==='All sites');
+  const people=state.employees.filter(e=>allSites||e.site===site)
+    .sort((a,b)=>(a.name||'').localeCompare(b.name||''));
+  const today=new Date().toISOString().slice(0,10);
+  const esc2=s=>String(s==null?'':s).replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
+
+  let totalDevices=0;
+  let peopleHtml='';
+  people.forEach(e=>{
+    const assets=assetsFor(e.name);
+    totalDevices+=assets.length;
+    const rows=assets.length?assets.map(a=>`
+      <tr>
+        <td>${esc2(a.type)}</td>
+        <td>${esc2(a.brand)} ${esc2(a.model)}</td>
+        <td>${esc2(a.serial)||'—'}</td>
+        <td>${esc2(a.condition)}</td>
+      </tr>`).join(''):`<tr><td colspan="4" style="color:#888;font-style:italic">No devices assigned</td></tr>`;
+    peopleHtml+=`
+      <div style="margin-bottom:18px">
+        <p style="margin:0 0 2px 0;font-size:13pt;font-weight:bold;color:#1F3864">${esc2(e.name)} <span style="font-weight:normal;color:#666;font-size:10pt">(${esc2(e.employeeId)||'no ID'})</span></p>
+        <p style="margin:0 0 6px 0;font-size:10pt;color:#555">${esc2(e.role)} · ${esc2(e.email)} · ${esc2(e.site)}</p>
+        <table border="1" cellspacing="0" cellpadding="5" style="border-collapse:collapse;width:100%;font-size:10pt">
+          <thead><tr style="background:#F2F5F4">
+            <th align="left">Type</th><th align="left">Brand / Model</th><th align="left">Serial</th><th align="left">Condition</th>
+          </tr></thead>
+          <tbody>${rows}</tbody>
+        </table>
+      </div>`;
+  });
+
+  const html=`<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" xmlns="http://www.w3.org/TR/REC-html40">
+<head><meta charset="utf-8"><title>IT Asset Report</title></head>
+<body style="font-family:Calibri,Arial,sans-serif;color:#182029">
+  <h1 style="color:#1F3864;font-size:20pt;margin-bottom:2px">IT Asset Assignment Report</h1>
+  <p style="color:#555;font-size:11pt;margin-top:0">Dedale Intelligence — IT Administration</p>
+  <p style="font-size:11pt"><b>Site:</b> ${esc2(site)}&nbsp;&nbsp;|&nbsp;&nbsp;<b>People:</b> ${people.length}&nbsp;&nbsp;|&nbsp;&nbsp;<b>Devices assigned:</b> ${totalDevices}&nbsp;&nbsp;|&nbsp;&nbsp;<b>Generated:</b> ${today}</p>
+  <hr>
+  ${peopleHtml}
+  <hr>
+  <p style="font-size:9pt;color:#888">Generated from the Dedale IT Asset Inventory system on ${today}.</p>
+</body></html>`;
+
+  const blob=new Blob(['\ufeff'+html],{type:'application/msword'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');
+  const siteTag=site.replace(/[^a-z0-9]/gi,'-');
+  a.href=url;a.download='Dedale-IT-Assets-'+siteTag+'-'+today+'.doc';a.click();
+  URL.revokeObjectURL(url);
+  toast('Word report generated for '+site,'ok');
 }
 function manageList(which){
   let set=new Set();
