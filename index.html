@@ -124,6 +124,11 @@ input,select{font-family:inherit;font-size:14px}
 .row-off{background:var(--red-bg)!important}
 .row-off:hover{background:#f7ddd9!important}
 .row-off td b{color:var(--red)}
+.login-cell{white-space:nowrap}
+.login-cell.editable{cursor:pointer}
+.login-cell.editable:hover .pill{outline:2px solid var(--accent);outline-offset:1px}
+.login-dt{display:block;font-size:11px;color:var(--muted);margin-top:3px}
+.login-edit{font-size:12px;padding:2px 8px;margin-left:4px}
 .off-tag{display:inline-block;margin-left:8px;background:var(--red);color:#fff;font-size:10.5px;font-weight:700;padding:1px 7px;border-radius:20px;vertical-align:middle}
 .prof-head{display:flex;align-items:center;gap:14px;margin-bottom:18px}
 .prof-av{width:52px;height:52px;border-radius:50%;background:var(--accent);color:#fff;display:flex;align-items:center;justify-content:center;font-family:'Space Grotesk';font-weight:700;font-size:19px;flex-shrink:0}
@@ -146,6 +151,13 @@ input,select{font-family:inherit;font-size:14px}
 .search-clear:hover{background:var(--border2);color:var(--ink)}
 .search input:focus{outline:none;border-color:var(--accent)}
 .search .ic{position:absolute;left:11px;top:50%;transform:translateY(-50%);color:var(--faint);font-size:14px}
+.spec-toggle.on{border-color:var(--accent);color:var(--accent-ink)}
+.spec-dot{width:7px;height:7px;border-radius:50%;background:var(--accent);display:inline-block}
+.spec-row{flex-basis:100%;display:flex;gap:10px;align-items:center;flex-wrap:wrap;padding:10px 12px;border:1px dashed var(--border2);border-radius:10px;background:var(--surface)}
+.spec-row-lbl{font-family:'Space Grotesk';font-weight:600;font-size:12.5px;color:var(--accent-ink);margin-right:2px}
+.spec-search{min-width:190px;flex:0 1 230px}
+.spec-cell b{display:block;font-weight:600;font-size:12.5px}
+.spec-cell span{display:block;font-size:11.5px;color:var(--muted);max-width:220px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .filt{padding:9px 11px;border:1px solid var(--border2);border-radius:8px;background:var(--surface);color:var(--ink);font-weight:500}
 .filt:focus{outline:none;border-color:var(--accent)}
 
@@ -671,12 +683,22 @@ function bars(obj,total){
 
 /* ============ ASSETS ============ */
 let aSearch='',aFilt={type:'',status:'',site:''},aSort={k:'type',dir:1},aSerial='',aUnassigned=false,aWarranty='';
-function reviewSerial(s){aSerial=s;aSearch='';aFilt={type:'',status:'',site:''};aUnassigned=false;aWarranty='';nav('assets');}
-function reviewWarranty(which){aWarranty=which;aSerial='';aSearch='';aUnassigned=false;aFilt={type:'',status:'',site:''};nav('assets');}
+let aSpec={ram:'',storage:'',cpu:'',gpu:''},aSpecOpen=false;
+function specActive(){return !!(aSpec.ram||aSpec.storage||aSpec.cpu||aSpec.gpu);}
+function resetSpec(){aSpec={ram:'',storage:'',cpu:'',gpu:''};aSpecOpen=false;}
+/* parse '16GB', '16 GB DDR5', '1TB SSD' -> size in GB (number) or null */
+function specGB(v){const m=String(v||'').match(/(\d+(?:\.\d+)?)\s*(tb|gb|mb)?/i);if(!m)return null;let n=parseFloat(m[1]);const u=(m[2]||'gb').toLowerCase();if(u==='tb')n*=1024;else if(u==='mb')n/=1024;return Math.round(n*100)/100;}
+function gbLabel(n){return n>=1024?(Math.round(n/1024*100)/100)+' TB':n+' GB';}
+function specOptions(field){const set=new Set();state.assets.forEach(a=>{const g=specGB(a[field]);if(g!=null)set.add(g);});return [...set].sort((x,y)=>x-y);}
+function cpuOptions(){const set=new Set();state.assets.forEach(a=>{const c=(a.cpu||'').trim();if(c)set.add(c);});return [...set].sort();}
+function toggleSpecs(){aSpecOpen=!aSpecOpen;if(!aSpecOpen&&specActive()){aSpec={ram:'',storage:'',cpu:'',gpu:''};}renderAssets(document.getElementById('content'));}
+function clearSpecs(){aSpec={ram:'',storage:'',cpu:'',gpu:''};renderAssets(document.getElementById('content'));}
+function reviewSerial(s){resetSpec();aSerial=s;aSearch='';aFilt={type:'',status:'',site:''};aUnassigned=false;aWarranty='';nav('assets');}
+function reviewWarranty(which){resetSpec();aWarranty=which;aSerial='';aSearch='';aUnassigned=false;aFilt={type:'',status:'',site:''};nav('assets');}
 function clearSerial(){aSerial='';renderAssets(document.getElementById('content'));}
 function dashDrill(what){
   // reset filters, then apply the one for the clicked card, then navigate
-  aSearch='';aSerial='';aUnassigned=false;aFilt={type:'',status:'',site:''};
+  aSearch='';aSerial='';aUnassigned=false;aFilt={type:'',status:'',site:''};resetSpec();
   if(what==='people'){nav('employees');return;}
   if(what==='inuse')aFilt.status='In Use';
   else if(what==='instock')aFilt.status='In Stock';
@@ -686,6 +708,8 @@ function dashDrill(what){
   nav('assets');
 }
 function renderAssets(c){
+  if(specActive())aSpecOpen=true;
+  const showSpecs=aSpecOpen;
   const types=['',...state.config.types],statuses=['',...STATUSES],sites=['',...state.config.sites];
   let h='';
   if(aSerial){h+=`<div style="margin-bottom:14px"><span class="filt-note">⚠ Showing flagged assets with serial ${esc(aSerial)} <button onclick="clearSerial()">Clear</button></span></div>`;}
@@ -696,12 +720,23 @@ function renderAssets(c){
     <select class="filt" onchange="aFilt.type=this.value;drawAssetRows()">${types.map(t=>`<option ${t===aFilt.type?'selected':''}>${t||'All types'}</option>`).join('')}</select>
     <select class="filt" onchange="aFilt.status=this.value;drawAssetRows()">${statuses.map(t=>`<option ${t===aFilt.status?'selected':''}>${t||'All statuses'}</option>`).join('')}</select>
     <select class="filt" onchange="aFilt.site=this.value;drawAssetRows()">${sites.map(t=>`<option ${t===aFilt.site?'selected':''}>${t||'All sites'}</option>`).join('')}</select>
+    <button class="btn spec-toggle${showSpecs?' on':''}" onclick="toggleSpecs()" title="Filter by CPU, RAM, storage or GPU">⚙ Specs${specActive()?' <span class="spec-dot"></span>':''}</button>
+    ${showSpecs?`<div class="spec-row">
+      <span class="spec-row-lbl">Filter by specs</span>
+      <select class="filt" onchange="aSpec.ram=this.value;renderAssets(document.getElementById('content'))"><option value="">Any RAM</option>${specOptions('ram').map(n=>`<option value="${n}" ${String(n)===aSpec.ram?'selected':''}>${gbLabel(n)} RAM</option>`).join('')}</select>
+      <select class="filt" onchange="aSpec.storage=this.value;renderAssets(document.getElementById('content'))"><option value="">Any storage</option>${specOptions('storage').map(n=>`<option value="${n}" ${String(n)===aSpec.storage?'selected':''}>${gbLabel(n)} storage</option>`).join('')}</select>
+      <div class="search spec-search"><span class="ic">▣</span><input list="cpuList" placeholder="CPU, e.g. i5 or Ultra 7" value="${esc(aSpec.cpu)}" oninput="aSpec.cpu=this.value;drawAssetRows()"></div>
+      <datalist id="cpuList">${cpuOptions().map(c=>`<option value="${esc(c)}">`).join('')}</datalist>
+      <div class="search spec-search"><span class="ic">▣</span><input placeholder="GPU contains…" value="${esc(aSpec.gpu)}" oninput="aSpec.gpu=this.value;drawAssetRows()"></div>
+      ${specActive()?`<button class="btn-ghost" onclick="clearSpecs()">Clear specs</button>`:''}
+      <button class="btn btn-sm" onclick="exportFilteredAssets()" title="Download the assets currently shown as CSV">⤓ Export results</button>
+    </div>`:''}
   </div>
   <div class="tbl-wrap"><div class="tbl-scroll"><table>
     <thead><tr>
       ${th('type','Type')}${th('brand','Brand')}${th('model','Model')}${th('serial','Serial')}
       ${th('condition','Condition')}${th('status','Status')}${th('assignedTo','Assigned to')}${th('site','Site')}
-      <th style="text-align:right">Actions</th>
+      ${showSpecs?'<th>Specs</th>':''}<th style="text-align:right">Actions</th>
     </tr></thead><tbody id="assetBody"></tbody>
   </table></div><div class="tbl-foot" id="assetFoot"></div></div>`;
   c.innerHTML=h;drawAssetRows();
@@ -712,11 +747,15 @@ function filteredAssets(){
   let r=state.assets.slice();
   if(aSerial)r=r.filter(a=>a.serial===aSerial);
   const q=aSearch.trim().toLowerCase();
-  if(q)r=r.filter(a=>[a.type,a.brand,a.model,a.serial,a.assignedTo,a.site,a.notes].some(v=>(v||'').toLowerCase().includes(q)));
+  if(q)r=r.filter(a=>[a.type,a.brand,a.model,a.serial,a.assignedTo,a.site,a.notes,a.cpu,a.ram,a.storage,a.gpu].some(v=>(v||'').toLowerCase().includes(q)));
   if(aFilt.type)r=r.filter(a=>a.type===aFilt.type);
   if(aFilt.status)r=r.filter(a=>a.status===aFilt.status);
   if(aFilt.site)r=r.filter(a=>a.site===aFilt.site);
   if(aUnassigned)r=r.filter(a=>!a.assignedTo);
+  if(aSpec.ram){const t=parseFloat(aSpec.ram);r=r.filter(a=>specGB(a.ram)===t);}
+  if(aSpec.storage){const t=parseFloat(aSpec.storage);r=r.filter(a=>specGB(a.storage)===t);}
+  if(aSpec.cpu.trim()){const t=aSpec.cpu.trim().toLowerCase();r=r.filter(a=>(a.cpu||'').toLowerCase().includes(t));}
+  if(aSpec.gpu.trim()){const t=aSpec.gpu.trim().toLowerCase();r=r.filter(a=>(a.gpu||'').toLowerCase().includes(t));}
   if(aWarranty){
     const todayStr=new Date().toISOString().slice(0,7);
     const soon=new Date();soon.setMonth(soon.getMonth()+3);const soonStr=soon.toISOString().slice(0,7);
@@ -728,7 +767,8 @@ function filteredAssets(){
 }
 function drawAssetRows(){
   const rows=filteredAssets();const body=document.getElementById('assetBody');if(!body)return;
-  if(!rows.length){body.innerHTML=`<tr><td colspan="9"><div class="empty"><span class="ic">▦</span><b>No matching assets</b>Adjust your search or filters.</div></td></tr>`;}
+  const showSpecs=aSpecOpen;
+  if(!rows.length){body.innerHTML=`<tr><td colspan="${showSpecs?10:9}"><div class="empty"><span class="ic">▦</span><b>No matching assets</b>Adjust your search or filters.</div></td></tr>`;}
   else body.innerHTML=rows.map(a=>{
     const flag=isFlagged(a)?`<span class="flag-badge">⚠ dup</span>`:'';
     return `<tr class="clickrow" onclick="viewAsset('${a.id}')" title="View details">
@@ -737,20 +777,65 @@ function drawAssetRows(){
       <td>${condPill(a.condition)}</td><td>${statusPill(a.status)}</td>
       <td>${a.assignedTo?esc(a.assignedTo):'<span class="unassigned">Unassigned</span>'}</td>
       <td>${esc(a.site)}</td>
+      ${showSpecs?`<td class="spec-cell">${(a.ram||a.storage||a.cpu||a.gpu)?`<b>${esc([a.ram,a.storage].filter(Boolean).join(' · '))||'—'}</b><span>${esc(a.cpu||'')}${a.gpu?(a.cpu?' · ':'')+esc(a.gpu):''}</span>`:'<span class="unassigned">—</span>'}</td>`:''}
       <td class="actions" onclick="event.stopPropagation()">${canEdit()?`${a.assignedTo?`<button class="ic-btn" title="Swap this device for another (returns this one to stock)" onclick="swapAsset('${a.id}')">⇄</button>`:''}<button class="ic-btn" title="Edit" onclick="openAsset('${a.id}')">✎</button><button class="ic-btn del" title="Delete" onclick="delAsset('${a.id}')">🗑</button>`:'<span style="color:var(--faint)">—</span>'}</td>
     </tr>`;}).join('');
-  document.getElementById('assetFoot').innerHTML=`<span>${rows.length} of ${state.assets.length} assets</span>`;
+  document.getElementById('assetFoot').innerHTML=`<span>${rows.length} of ${state.assets.length} assets${specActive()?' matching spec filter':''}</span>`;
 }
 function statusPill(s){const m={'In Use':'inuse','In Stock':'instock','Under Repair':'repair','Retired':'retired'};return `<span class="pill ${m[s]||'retired'}">${esc(s)||'—'}</span>`;}
 function condPill(c){const m={'New':'new','Good':'good','Fair':'fair','Damaged':'damaged'};return `<span class="pill ${m[c]||'good'}">${esc(c)||'—'}</span>`;}
 
 /* ============ EMPLOYEES ============ */
-let eSearch='',eSort={k:'employeeId',dir:1},eSite='';
+let eSearch='',eSort={k:'employeeId',dir:1},eSite='',eLogin='';
+/* ---- Last login (manually recorded from TRMM) ---- */
+const MON={jan:1,feb:2,mar:3,apr:4,may:5,jun:6,jul:7,aug:8,sep:9,oct:10,nov:11,dec:12};
+function pad2(n){return String(n).padStart(2,'0');}
+/* Accepts TRMM style 'Oct-05-2026 17:38', or '2026-10-05 17:38' / '2026-10-05T17:38'. Returns 'YYYY-MM-DDTHH:MM' or '' */
+function parseLoginText(t){t=String(t||'').trim();if(!t)return '';
+  let m=t.match(/^([A-Za-z]{3})[a-z]*[-\s\/]+(\d{1,2})[-,\s\/]+(\d{4})(?:[\sT,]+(\d{1,2}):(\d{2}))?/);
+  if(m&&MON[m[1].toLowerCase()])return `${m[3]}-${pad2(MON[m[1].toLowerCase()])}-${pad2(m[2])}T${pad2(m[4]||0)}:${m[5]||'00'}`;
+  m=t.match(/^(\d{4})-(\d{1,2})-(\d{1,2})(?:[\sT]+(\d{1,2}):(\d{2}))?/);
+  if(m)return `${m[1]}-${pad2(m[2])}-${pad2(m[3])}T${pad2(m[4]||0)}:${m[5]||'00'}`;
+  return '';}
+function loginDays(v){if(!v)return null;const d=new Date(v);if(isNaN(d))return null;return Math.max(0,Math.floor((Date.now()-d.getTime())/86400000));}
+function fmtLogin(v){if(!v)return '';const d=new Date(v);if(isNaN(d))return esc(v);return d.toLocaleDateString('en-US',{month:'short',day:'2-digit',year:'numeric'})+' · '+pad2(d.getHours())+':'+pad2(d.getMinutes());}
+function loginPill(v){const n=loginDays(v);if(n===null)return '<span class="pill retired">Not recorded</span>';
+  const cls=n<=7?'inuse':n<=30?'repair':'damaged';const lbl=n===0?'Today':n===1?'1 day ago':n+' days ago';return `<span class="pill ${cls}">${lbl}</span>`;}
+function hasLaptop(name){return assetsFor(name).some(a=>(a.type||'').toLowerCase()==='laptop');}
+function loginBucket(e){const n=loginDays(e.lastLogin);if(n===null)return 'none';return n>30?'30':n>7?'7':'ok';}
+function editLogin(name,back){if(!canEdit()){toast("View-only access — editing is restricted","err");return;}
+  const e=state.employees.find(x=>x.name===name);if(!e)return;
+  const nm=esc(name).replace(/'/g,"\\'");
+  const m=`<div class="modal-bg"><div class="modal" style="max-width:460px">
+    <div class="modal-h"><h3>Last login — ${esc(name)}</h3><button class="btn-ghost" onclick="closeModal()">✕</button></div>
+    <div class="modal-b">
+      <p style="font-size:13px;color:var(--muted);margin-bottom:12px">Enter the last time this person was logged in, as shown in TRMM.</p>
+      <div class="field"><label>Paste from TRMM <span style="font-weight:400;color:var(--faint)">(e.g. Oct-05-2026 17:38)</span></label>
+        <input id="ll_paste" placeholder="Oct-05-2026 17:38" oninput="const v=parseLoginText(this.value);if(v)document.getElementById('ll_dt').value=v;"></div>
+      <div class="field"><label>Last login (date &amp; time)</label><input id="ll_dt" type="datetime-local" value="${esc(e.lastLogin||'')}"></div>
+      ${e.lastLoginRecorded?`<p style="font-size:12px;color:var(--faint)">Last updated ${esc(e.lastLoginRecorded)}</p>`:''}
+    </div>
+    <div class="modal-f">${e.lastLogin?`<button class="btn" style="margin-right:auto" onclick="saveLogin('${nm}',${back?1:0},true)">Clear</button>`:''}
+      <button class="btn" onclick="${back?`viewEmp('${nm}')`:'closeModal()'}">Cancel</button>
+      <button class="btn btn-primary" onclick="saveLogin('${nm}',${back?1:0})">Save</button></div>
+  </div></div>`;
+  mount(m);setTimeout(()=>{const el=document.getElementById('ll_paste');if(el)el.focus();},50);
+}
+function saveLogin(name,back,clear){if(!canEdit()){toast("View-only access — editing is restricted","err");return;}
+  const e=state.employees.find(x=>x.name===name);if(!e)return;
+  if(clear){e.lastLogin='';e.lastLoginRecorded='';}
+  else{let v=document.getElementById('ll_dt').value;if(!v)v=parseLoginText(document.getElementById('ll_paste').value);
+    if(!v){toast('Enter a date and time','err');return;}
+    if(new Date(v).getTime()>Date.now()+3600000){toast('That date is in the future — please check it','err');return;}
+    e.lastLogin=v;e.lastLoginRecorded=new Date().toISOString().slice(0,10);}
+  saveState();toast(clear?'Last login cleared':'Last login saved','ok');
+  if(back)viewEmp(name);else{closeModal();if(CUR==='employees'||CUR==='people')drawEmpRows();}
+}
 function renderEmps(c){
   const sites=['',...(state.config.sites||[])];
-  let h=`<div class="toolbar"><div class="search"><span class="ic">⌕</span><input id="empSearchInput" placeholder="Search name, role, email…" value="${esc(eSearch)}" oninput="eSearch=this.value;toggleClear('emp');drawEmpRows()"><button class="search-clear${eSearch?' show':''}" id="empSearchClear" title="Clear" onclick="clearSearch('emp')">✕</button></div><select class="filt" onchange="eSite=this.value;drawEmpRows()">${sites.map(s=>`<option ${s===eSite?'selected':''}>${s||'All sites'}</option>`).join('')}</select></div>
+  let h=`<div class="toolbar"><div class="search"><span class="ic">⌕</span><input id="empSearchInput" placeholder="Search name, role, email…" value="${esc(eSearch)}" oninput="eSearch=this.value;toggleClear('emp');drawEmpRows()"><button class="search-clear${eSearch?' show':''}" id="empSearchClear" title="Clear" onclick="clearSearch('emp')">✕</button></div><select class="filt" onchange="eSite=this.value;drawEmpRows()">${sites.map(s=>`<option ${s===eSite?'selected':''}>${s||'All sites'}</option>`).join('')}</select><select class="filt" onchange="eLogin=this.value;drawEmpRows()" title="Filter by last login (TRMM)">${[['','Any last login'],['stale7','No login in 7+ days'],['stale30','No login in 30+ days'],['none','Login not recorded'],['laptopNoLogin','Has laptop · no recent login (7+ days)']].map(([v,l])=>`<option value="${v}" ${v===eLogin?'selected':''}>${l}</option>`).join('')}</select></div>
   <div class="tbl-wrap"><div class="tbl-scroll"><table>
-    <thead><tr>${the('employeeId','ID')}${the('name','Name')}${the('role','Role')}${the('email','Email')}${the('site','Site')}<th style="text-align:right">Actions</th></tr></thead>
+    <thead><tr>${the('employeeId','ID')}${the('name','Name')}${the('role','Role')}${the('email','Email')}${the('site','Site')}${the('lastLogin','Last login (TRMM)')}<th style="text-align:right">Actions</th></tr></thead>
     <tbody id="empBody"></tbody></table></div><div class="tbl-foot" id="empFoot"></div></div>`;
   c.innerHTML=h;drawEmpRows();
 }
@@ -760,14 +845,23 @@ function drawEmpRows(){
   let r=state.employees.slice();const q=eSearch.trim().toLowerCase();
   if(q)r=r.filter(e=>[e.name,e.role,e.email,e.employeeId].some(v=>(v||'').toLowerCase().includes(q)));
   if(eSite)r=r.filter(e=>e.site===eSite);
-  r.sort((a,b)=>{const x=(a[eSort.k]||'').toLowerCase(),y=(b[eSort.k]||'').toLowerCase();return x<y?-eSort.dir:x>y?eSort.dir:0;});
+  if(eLogin){r=r.filter(e=>{const b=loginBucket(e);
+    if(eLogin==='none')return b==='none';
+    if(eLogin==='stale7')return b==='7'||b==='30';
+    if(eLogin==='stale30')return b==='30';
+    if(eLogin==='laptopNoLogin')return (e.status||'').toLowerCase()!=='offboarded'&&hasLaptop(e.name)&&b!=='ok';
+    return true;});}
+  r.sort((a,b)=>{const x=(a[eSort.k]||'').toLowerCase(),y=(b[eSort.k]||'').toLowerCase();
+    if(eSort.k==='lastLogin'){if(!x&&y)return 1;if(x&&!y)return -1;}
+    return x<y?-eSort.dir:x>y?eSort.dir:0;});
   const body=document.getElementById('empBody');if(!body)return;
-  if(!r.length){body.innerHTML=`<tr><td colspan="6"><div class="empty"><span class="ic">◉</span><b>No matching people</b></div></td></tr>`;}
+  if(!r.length){body.innerHTML=`<tr><td colspan="7"><div class="empty"><span class="ic">◉</span><b>No matching people</b></div></td></tr>`;}
   else body.innerHTML=r.map(e=>{
     const off=(e.status||'').toLowerCase()==='offboarded';
     return `<tr class="${off?'row-off':''}">
       <td><button class="id-link" onclick="viewEmp('${esc(e.name).replace(/'/g,"\\'")}')" title="View profile">${esc(e.employeeId)||'—'}</button></td>
       <td><b>${esc(e.name)}</b>${off?'<span class="off-tag">Offboarded</span>':''}</td><td>${esc(e.role)}</td><td style="color:var(--muted)">${esc(e.email)}</td><td>${esc(e.site)}</td>
+      <td class="login-cell${canEdit()?' editable':''}" ${canEdit()?`onclick="editLogin('${esc(e.name).replace(/'/g,"\\'")}')" title="Click to record last login from TRMM"`:''}>${loginPill(e.lastLogin)}${e.lastLogin?`<span class="login-dt">${fmtLogin(e.lastLogin)}</span>`:''}</td>
       <td class="actions">${canEdit()?`<button class="ic-btn" onclick="openEmp('${e.employeeId||''}','${esc(e.name).replace(/'/g,"\\'")}')">✎</button><button class="ic-btn del" onclick="delEmp('${esc(e.name).replace(/'/g,"\\'")}')">🗑</button>`:'<span style="color:var(--faint)">—</span>'}</td>
     </tr>`;}).join('');
   document.getElementById('empFoot').innerHTML=`<span>${r.length} of ${state.employees.length} people</span>`;
@@ -1100,6 +1194,7 @@ function viewEmp(name){
         <div><span class="prof-lbl">Email</span><span class="prof-val">${esc(e.email)||'—'}</span></div>
         <div><span class="prof-lbl">Site</span><span class="prof-val">${esc(e.site)||'—'}</span></div>
         <div><span class="prof-lbl">Status</span><span class="prof-val">${esc(e.status)||'Active'}</span></div>
+        <div><span class="prof-lbl">Last login (TRMM)</span><span class="prof-val">${e.lastLogin?fmtLogin(e.lastLogin)+' ':''}${loginPill(e.lastLogin)}${canEdit()?` <button class="btn-ghost login-edit" onclick="editLogin('${esc(e.name).replace(/'/g,"\\'")}',1)">${e.lastLogin?'Update':'Record'}</button>`:''}</span></div>
         ${e.department?`<div><span class="prof-lbl">Department</span><span class="prof-val">${esc(e.department)}</span></div>`:''}
         ${e.startDate?`<div><span class="prof-lbl">Start date</span><span class="prof-val">${esc(e.startDate)}</span></div>`:''}
       </div>
@@ -1197,6 +1292,16 @@ function renderImport(c){
       <p style="color:var(--muted);font-size:13px;margin-bottom:10px">Laptops with expired warranty — for management / replacement planning.</p>
       <button class="btn btn-primary" onclick="generateWarrantyReport()">📄 Generate expired-warranty report (Word)</button>
     </div>
+    <div style="margin-top:14px;padding-top:14px;border-top:1px solid var(--border)">
+      <p style="color:var(--muted);font-size:13px;margin-bottom:10px">People with an assigned laptop who have not logged in recently (based on the last login recorded from TRMM).</p>
+      <div style="display:flex;gap:11px;flex-wrap:wrap;align-items:center">
+        <label style="font-size:13px;font-weight:600;color:var(--muted)">No login in:</label>
+        <select id="loginDays" class="filt"><option value="7">7+ days</option><option value="14">14+ days</option><option value="30" selected>30+ days</option></select>
+        <label style="font-size:13px;font-weight:600;color:var(--muted)">Site:</label>
+        <select id="loginSite" class="filt"><option>All sites</option>${(state.config.sites||[]).map(s=>`<option>${esc(s)}</option>`).join('')}</select>
+        <button class="btn btn-primary" onclick="generateLoginReport()">📄 Generate login activity report (Word)</button>
+      </div>
+    </div>
   </div></div>
   <div class="panel"><div class="panel-h"><h3>Manage dropdown lists</h3></div><div class="panel-b">
     <p style="color:var(--muted);font-size:13px;margin-bottom:12px">Clean up the values that appear in the Type, Brand, Model, and Supplier dropdowns — useful for removing typos or bad entries.</p>
@@ -1243,6 +1348,41 @@ function generateWarrantyReport(){
   const url=URL.createObjectURL(blob);const a=document.createElement('a');
   a.href=url;a.download='Dedale-Expired-Warranty-Laptops-'+today+'.doc';a.click();URL.revokeObjectURL(url);
   toast('Expired-warranty report generated','ok');
+}
+function generateLoginReport(){
+  const days=parseInt(document.getElementById('loginDays').value,10);
+  const site=document.getElementById('loginSite').value;const all=site==='All sites';
+  const today=new Date().toISOString().slice(0,10);
+  const esc2=s=>String(s==null?'':s).replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
+  const pool=state.employees.filter(e=>(e.status||'').toLowerCase()!=='offboarded'&&(all||e.site===site)&&hasLaptop(e.name));
+  const flagged=pool.filter(e=>{const n=loginDays(e.lastLogin);return n===null||n>=days;})
+    .sort((a,b)=>{const x=loginDays(a.lastLogin),y=loginDays(b.lastLogin);return (y===null?1e9:y)-(x===null?1e9:x)||(a.name||'').localeCompare(b.name||'');});
+  if(!flagged.length){toast('Everyone with a laptop has logged in within '+days+' days','ok');return;}
+  const notRec=flagged.filter(e=>!e.lastLogin).length;
+  const rows=flagged.map(e=>{const n=loginDays(e.lastLogin);
+    const laps=assetsFor(e.name).filter(a=>(a.type||'').toLowerCase()==='laptop').map(a=>esc2(a.brand+' '+a.model)+(a.serial?' ('+esc2(a.serial)+')':'')).join('<br>');
+    return `<tr><td>${esc2(e.name)}</td><td>${esc2(e.role)}</td><td>${esc2(e.site)}</td><td>${laps}</td>
+      <td>${e.lastLogin?esc2(fmtLogin(e.lastLogin).replace(' · ',' ')):'<i>Not recorded</i>'}</td>
+      <td style="color:#c0392b;font-weight:bold">${n===null?'—':n}</td></tr>`;}).join('');
+  const html=`<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" xmlns="http://www.w3.org/TR/REC-html40">
+<head><meta charset="utf-8"><title>Login Activity Report</title></head>
+<body style="font-family:Calibri,Arial,sans-serif;color:#182029">
+  <h1 style="color:#1F3864;font-size:20pt;margin-bottom:2px">Laptop Login Activity Report</h1>
+  <p style="color:#555;font-size:11pt;margin-top:0">Dedale Intelligence — IT Administration</p>
+  <p style="font-size:11pt"><b>Criteria:</b> active employees with an assigned laptop and no recorded login in the last ${days} days${all?'':' — '+esc2(site)}<br>
+  <b>Flagged:</b> ${flagged.length} of ${pool.length} people with laptops${notRec?' ('+notRec+' with no login recorded)':''}&nbsp;&nbsp;|&nbsp;&nbsp;<b>Generated:</b> ${today}</p>
+  <hr>
+  <table border="1" cellspacing="0" cellpadding="6" style="border-collapse:collapse;width:100%;font-size:10pt">
+    <thead><tr style="background:#F2F5F4"><th align="left">Name</th><th align="left">Role</th><th align="left">Site</th><th align="left">Assigned laptop(s)</th><th align="left">Last login (TRMM)</th><th align="left">Days since</th></tr></thead>
+    <tbody>${rows}</tbody>
+  </table>
+  <hr>
+  <p style="font-size:9pt;color:#888">Generated from the Dedale IT Asset Inventory system on ${today}. Last login times are recorded manually from Tactical RMM (TRMM) and reflect the most recent value entered; "Not recorded" means no value has been entered yet.</p>
+</body></html>`;
+  const blob=new Blob(['\ufeff'+html],{type:'application/msword'});
+  const url=URL.createObjectURL(blob);const a=document.createElement('a');
+  a.href=url;a.download='Dedale-Login-Activity-'+(all?'All-Sites':site.replace(/\s+/g,'-'))+'-'+today+'.doc';a.click();URL.revokeObjectURL(url);
+  toast('Login activity report generated ('+flagged.length+' people)','ok');
 }
 function generateSiteReport(){
   const site=document.getElementById('reportSite').value;
@@ -1389,12 +1529,21 @@ function importCsv(input,kind){if(!canEdit()){toast("View-only access — editin
   rd.readAsText(file);
 }
 function refreshConfig(a){if(a.type&&!state.config.types.includes(a.type))state.config.types.push(a.type);if(a.brand&&!state.config.brands.includes(a.brand))state.config.brands.push(a.brand);if(a.site&&!state.config.sites.includes(a.site))state.config.sites.push(a.site);if(a.brand&&a.model){state.config.models[a.brand]=state.config.models[a.brand]||[];if(!state.config.models[a.brand].includes(a.model))state.config.models[a.brand].push(a.model);}}
+function exportFilteredAssets(){
+  const list=filteredAssets();if(!list.length){toast('No assets to export','err');return;}
+  const head=['Type','Brand','Model','Serial','Condition','Status','Assigned To','Site','Warranty Expiry','Supplier','CPU','RAM','Storage','GPU','Notes'];
+  const rows=list.map(a=>[a.type,a.brand,a.model,a.serial,a.condition,a.status,a.assignedTo,a.site,a.warrantyExpiry,a.supplier,a.cpu||'',a.ram||'',a.storage||'',a.gpu||'',a.notes]);
+  const csv=[head,...rows].map(r=>r.map(c=>'"'+String(c||'').replace(/"/g,'""')+'"').join(',')).join('\n');
+  const blob=new Blob([csv],{type:'text/csv'});const url=URL.createObjectURL(blob);const el=document.createElement('a');
+  el.href=url;el.download='dedale-assets-filtered-'+new Date().toISOString().slice(0,10)+'.csv';el.click();URL.revokeObjectURL(url);
+  toast('Exported '+list.length+' assets','ok');
+}
 function exportCsv(kind){
   let head,rows;
   if(kind==='assets'){head=['Type','Brand','Model','Serial','Condition','Status','Assigned To','Site','Warranty Expiry','Supplier','CPU','RAM','Storage','GPU','Notes'];
     rows=state.assets.map(a=>[a.type,a.brand,a.model,a.serial,a.condition,a.status,a.assignedTo,a.site,a.warrantyExpiry,a.supplier,a.cpu||'',a.ram||'',a.storage||'',a.gpu||'',a.notes]);}
-  else{head=['Employee ID','Full Name','Role','Email','Site','Department','Start Date','Status'];
-    rows=state.employees.map(e=>[e.employeeId,e.name,e.role,e.email,e.site,e.department,e.startDate,e.status]);}
+  else{head=['Employee ID','Full Name','Role','Email','Site','Department','Start Date','Status','Last Login (TRMM)'];
+    rows=state.employees.map(e=>[e.employeeId,e.name,e.role,e.email,e.site,e.department,e.startDate,e.status,e.lastLogin?e.lastLogin.replace('T',' '):'']);}
   const csv=[head,...rows].map(r=>r.map(c=>'"'+String(c||'').replace(/"/g,'""')+'"').join(',')).join('\n');
   const blob=new Blob([csv],{type:'text/csv'});const url=URL.createObjectURL(blob);const a=document.createElement('a');
   a.href=url;a.download='dedale-'+kind+'-'+new Date().toISOString().slice(0,10)+'.csv';a.click();URL.revokeObjectURL(url);
