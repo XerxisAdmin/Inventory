@@ -672,6 +672,33 @@ function renderDash(c){
     }
   }
   h+=`</div></div>`;
+  // Laptop login activity panel (last login recorded from TRMM)
+  const lPool=E.filter(e=>(e.status||'').toLowerCase()!=='offboarded'&&hasLaptop(e.name));
+  const lStale=lPool.filter(e=>{const n=loginDays(e.lastLogin);return n!==null&&n>7;}).sort((a,b)=>loginDays(b.lastLogin)-loginDays(a.lastLogin));
+  const lNone=lPool.filter(e=>!e.lastLogin);
+  const lOk=lPool.length-lStale.length-lNone.length;
+  h+=`<div class="panel"><div class="panel-h"><h3>Laptop login activity</h3>${lStale.length||lNone.length?`<button class="btn btn-sm" onclick="generateLoginReport(7,'All sites')">📄 Download report (Word)</button>`:''}</div><div class="panel-b">`;
+  if(!lPool.length){
+    h+=`<div class="empty" style="padding:20px"><b>No assigned laptops</b>Assign laptops to people to track their login activity.</div>`;
+  }else{
+    h+=`<div class="stat-grid" style="margin-bottom:16px">
+      <div class="stat warn statclick" onclick="reviewLogin('laptopStale')"><div class="lbl">⚠ No login &gt; 7 days</div><div class="val sm">${lStale.length}</div></div>
+      <div class="stat statclick" onclick="reviewLogin('laptopNone')"><div class="lbl">Login not recorded</div><div class="val sm">${lNone.length}</div></div>
+      <div class="stat"><div class="lbl">Logged in ≤ 7 days</div><div class="val sm">${lOk}</div></div>
+    </div>`;
+    if(lStale.length){
+      h+=`<div style="font-size:12.5px;color:var(--muted);margin-bottom:6px">Not logged in for more than 7 days:</div>`;
+      lStale.slice(0,10).forEach(e=>{
+        const laps=assetsFor(e.name).filter(a=>(a.type||'').toLowerCase()==='laptop').map(a=>esc(a.brand+' '+a.model)+(a.serial?' ('+esc(a.serial)+')':'')).join(', ');
+        h+=`<div class="flag-item statclick" style="background:var(--red-bg);border-color:#eccc8a;cursor:pointer" onclick="viewEmp('${esc(e.name).replace(/'/g,"\\'")}')"><span class="ic" style="color:var(--red)">⚠</span><div style="flex:1"><b>${esc(e.name)} — ${loginDays(e.lastLogin)} days</b><p>${laps} · ${esc(e.site)} · last login ${fmtLogin(e.lastLogin)}</p></div></div>`;
+      });
+      if(lStale.length>10)h+=`<button class="btn-ghost" style="margin-top:4px" onclick="reviewLogin('laptopStale')">View all ${lStale.length} →</button>`;
+    }else if(!lNone.length){
+      h+=`<div class="empty" style="padding:14px"><b>All clear</b>Everyone with a laptop has logged in within the last 7 days.</div>`;
+    }
+    h+=`<p style="font-size:11.5px;color:var(--faint);margin-top:10px">Based on last login times recorded from TRMM on the People tab.</p>`;
+  }
+  h+=`</div></div>`;
   c.innerHTML=h;
   requestAnimationFrame(()=>document.querySelectorAll('.bar-fill').forEach(b=>b.style.width=b.dataset.w+'%'));
 }
@@ -803,6 +830,7 @@ function loginPill(v){const n=loginDays(v);if(n===null)return '<span class="pill
   const cls=n<=7?'inuse':n<=30?'repair':'damaged';const lbl=n===0?'Today':n===1?'1 day ago':n+' days ago';return `<span class="pill ${cls}">${lbl}</span>`;}
 function hasLaptop(name){return assetsFor(name).some(a=>(a.type||'').toLowerCase()==='laptop');}
 function loginBucket(e){const n=loginDays(e.lastLogin);if(n===null)return 'none';return n>30?'30':n>7?'7':'ok';}
+function reviewLogin(which){eSearch='';eSite='';eLogin=which;nav('employees');}
 function editLogin(name,back){if(!canEdit()){toast("View-only access — editing is restricted","err");return;}
   const e=state.employees.find(x=>x.name===name);if(!e)return;
   const nm=esc(name).replace(/'/g,"\\'");
@@ -833,7 +861,7 @@ function saveLogin(name,back,clear){if(!canEdit()){toast("View-only access — e
 }
 function renderEmps(c){
   const sites=['',...(state.config.sites||[])];
-  let h=`<div class="toolbar"><div class="search"><span class="ic">⌕</span><input id="empSearchInput" placeholder="Search name, role, email…" value="${esc(eSearch)}" oninput="eSearch=this.value;toggleClear('emp');drawEmpRows()"><button class="search-clear${eSearch?' show':''}" id="empSearchClear" title="Clear" onclick="clearSearch('emp')">✕</button></div><select class="filt" onchange="eSite=this.value;drawEmpRows()">${sites.map(s=>`<option ${s===eSite?'selected':''}>${s||'All sites'}</option>`).join('')}</select><select class="filt" onchange="eLogin=this.value;drawEmpRows()" title="Filter by last login (TRMM)">${[['','Any last login'],['stale7','No login in 7+ days'],['stale30','No login in 30+ days'],['none','Login not recorded'],['laptopNoLogin','Has laptop · no recent login (7+ days)']].map(([v,l])=>`<option value="${v}" ${v===eLogin?'selected':''}>${l}</option>`).join('')}</select></div>
+  let h=`<div class="toolbar"><div class="search"><span class="ic">⌕</span><input id="empSearchInput" placeholder="Search name, role, email…" value="${esc(eSearch)}" oninput="eSearch=this.value;toggleClear('emp');drawEmpRows()"><button class="search-clear${eSearch?' show':''}" id="empSearchClear" title="Clear" onclick="clearSearch('emp')">✕</button></div><select class="filt" onchange="eSite=this.value;drawEmpRows()">${sites.map(s=>`<option ${s===eSite?'selected':''}>${s||'All sites'}</option>`).join('')}</select><select class="filt" onchange="eLogin=this.value;drawEmpRows()" title="Filter by last login (TRMM)">${[['','Any last login'],['stale7','No login > 7 days'],['stale30','No login > 30 days'],['none','Login not recorded'],['laptopNoLogin','Has laptop · no login > 7 days or not recorded'],['laptopStale','Has laptop · no login > 7 days'],['laptopNone','Has laptop · login not recorded']].map(([v,l])=>`<option value="${v}" ${v===eLogin?'selected':''}>${l}</option>`).join('')}</select></div>
   <div class="tbl-wrap"><div class="tbl-scroll"><table>
     <thead><tr>${the('employeeId','ID')}${the('name','Name')}${the('role','Role')}${the('email','Email')}${the('site','Site')}${the('lastLogin','Last login (TRMM)')}<th style="text-align:right">Actions</th></tr></thead>
     <tbody id="empBody"></tbody></table></div><div class="tbl-foot" id="empFoot"></div></div>`;
@@ -849,7 +877,10 @@ function drawEmpRows(){
     if(eLogin==='none')return b==='none';
     if(eLogin==='stale7')return b==='7'||b==='30';
     if(eLogin==='stale30')return b==='30';
-    if(eLogin==='laptopNoLogin')return (e.status||'').toLowerCase()!=='offboarded'&&hasLaptop(e.name)&&b!=='ok';
+    const act=(e.status||'').toLowerCase()!=='offboarded'&&hasLaptop(e.name);
+    if(eLogin==='laptopNoLogin')return act&&b!=='ok';
+    if(eLogin==='laptopStale')return act&&(b==='7'||b==='30');
+    if(eLogin==='laptopNone')return act&&b==='none';
     return true;});}
   r.sort((a,b)=>{const x=(a[eSort.k]||'').toLowerCase(),y=(b[eSort.k]||'').toLowerCase();
     if(eSort.k==='lastLogin'){if(!x&&y)return 1;if(x&&!y)return -1;}
@@ -1295,8 +1326,8 @@ function renderImport(c){
     <div style="margin-top:14px;padding-top:14px;border-top:1px solid var(--border)">
       <p style="color:var(--muted);font-size:13px;margin-bottom:10px">People with an assigned laptop who have not logged in recently (based on the last login recorded from TRMM).</p>
       <div style="display:flex;gap:11px;flex-wrap:wrap;align-items:center">
-        <label style="font-size:13px;font-weight:600;color:var(--muted)">No login in:</label>
-        <select id="loginDays" class="filt"><option value="7">7+ days</option><option value="14">14+ days</option><option value="30" selected>30+ days</option></select>
+        <label style="font-size:13px;font-weight:600;color:var(--muted)">No login for more than:</label>
+        <select id="loginDays" class="filt"><option value="7" selected>7 days</option><option value="14">14 days</option><option value="30">30 days</option></select>
         <label style="font-size:13px;font-weight:600;color:var(--muted)">Site:</label>
         <select id="loginSite" class="filt"><option>All sites</option>${(state.config.sites||[]).map(s=>`<option>${esc(s)}</option>`).join('')}</select>
         <button class="btn btn-primary" onclick="generateLoginReport()">📄 Generate login activity report (Word)</button>
@@ -1349,15 +1380,15 @@ function generateWarrantyReport(){
   a.href=url;a.download='Dedale-Expired-Warranty-Laptops-'+today+'.doc';a.click();URL.revokeObjectURL(url);
   toast('Expired-warranty report generated','ok');
 }
-function generateLoginReport(){
-  const days=parseInt(document.getElementById('loginDays').value,10);
-  const site=document.getElementById('loginSite').value;const all=site==='All sites';
+function generateLoginReport(daysArg,siteArg){
+  const days=daysArg||parseInt(document.getElementById('loginDays').value,10);
+  const site=siteArg||document.getElementById('loginSite').value;const all=site==='All sites';
   const today=new Date().toISOString().slice(0,10);
   const esc2=s=>String(s==null?'':s).replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
   const pool=state.employees.filter(e=>(e.status||'').toLowerCase()!=='offboarded'&&(all||e.site===site)&&hasLaptop(e.name));
-  const flagged=pool.filter(e=>{const n=loginDays(e.lastLogin);return n===null||n>=days;})
+  const flagged=pool.filter(e=>{const n=loginDays(e.lastLogin);return n===null||n>days;})
     .sort((a,b)=>{const x=loginDays(a.lastLogin),y=loginDays(b.lastLogin);return (y===null?1e9:y)-(x===null?1e9:x)||(a.name||'').localeCompare(b.name||'');});
-  if(!flagged.length){toast('Everyone with a laptop has logged in within '+days+' days','ok');return;}
+  if(!flagged.length){toast('Everyone with a laptop has logged in within the last '+days+' days','ok');return;}
   const notRec=flagged.filter(e=>!e.lastLogin).length;
   const rows=flagged.map(e=>{const n=loginDays(e.lastLogin);
     const laps=assetsFor(e.name).filter(a=>(a.type||'').toLowerCase()==='laptop').map(a=>esc2(a.brand+' '+a.model)+(a.serial?' ('+esc2(a.serial)+')':'')).join('<br>');
@@ -1369,7 +1400,7 @@ function generateLoginReport(){
 <body style="font-family:Calibri,Arial,sans-serif;color:#182029">
   <h1 style="color:#1F3864;font-size:20pt;margin-bottom:2px">Laptop Login Activity Report</h1>
   <p style="color:#555;font-size:11pt;margin-top:0">Dedale Intelligence — IT Administration</p>
-  <p style="font-size:11pt"><b>Criteria:</b> active employees with an assigned laptop and no recorded login in the last ${days} days${all?'':' — '+esc2(site)}<br>
+  <p style="font-size:11pt"><b>Criteria:</b> active employees with an assigned laptop and no recorded login for more than ${days} days${all?'':' — '+esc2(site)}<br>
   <b>Flagged:</b> ${flagged.length} of ${pool.length} people with laptops${notRec?' ('+notRec+' with no login recorded)':''}&nbsp;&nbsp;|&nbsp;&nbsp;<b>Generated:</b> ${today}</p>
   <hr>
   <table border="1" cellspacing="0" cellpadding="6" style="border-collapse:collapse;width:100%;font-size:10pt">
