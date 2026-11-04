@@ -125,6 +125,14 @@ input,select{font-family:inherit;font-size:14px}
 .row-off:hover{background:#f7ddd9!important}
 .row-off td b{color:var(--red)}
 .login-cell{white-space:nowrap}
+.mon-tbl{width:100%;border-collapse:collapse;font-size:13px}
+.mon-tbl th{font-size:11.5px;text-transform:uppercase;letter-spacing:.03em;color:var(--muted);text-align:left;padding:8px 10px;border-bottom:1px solid var(--border)}
+.mon-tbl td{padding:9px 10px;border-bottom:1px solid var(--border)}
+.mon-total td{background:var(--surface2,transparent)}
+.mon-need{color:var(--red);font-weight:700;cursor:pointer;text-decoration:underline}
+.mon-bar{display:inline-block;vertical-align:middle;width:calc(100% - 52px);height:8px;border-radius:5px;background:var(--border);overflow:hidden}
+.mon-fill{height:100%;background:var(--accent);border-radius:5px}
+.mon-pct{font-size:12px;color:var(--muted);margin-left:8px}
 .login-cell.editable{cursor:pointer}
 .login-cell.editable:hover .pill{outline:2px solid var(--accent);outline-offset:1px}
 .login-dt{display:block;font-size:11px;color:var(--muted);margin-top:3px}
@@ -699,6 +707,26 @@ function renderDash(c){
     h+=`<p style="font-size:11.5px;color:var(--faint);margin-top:10px">Based on last login times recorded from TRMM on the People tab.</p>`;
   }
   h+=`</div></div>`;
+  // Monitor coverage by site
+  const mc=monitorCoverage();const mTot=mc.reduce((a,x)=>a+x.total,0),mWith=mc.reduce((a,x)=>a+x.withMon,0),mNeed=mTot-mWith;
+  h+=`<div class="panel"><div class="panel-h"><h3>Monitor coverage by site</h3>${mTot?`<button class="btn btn-sm" onclick="generateMonitorReport('All sites')">📄 Download report (Word)</button>`:''}</div><div class="panel-b">`;
+  if(!mTot){h+=`<div class="empty" style="padding:20px"><b>No active employees</b>Add people to see monitor coverage.</div>`;}
+  else{
+    h+=`<div class="stat-grid" style="margin-bottom:16px">
+      <div class="stat"><div class="lbl">Active employees</div><div class="val sm">${mTot}</div></div>
+      <div class="stat"><div class="lbl">With a monitor</div><div class="val sm">${mWith}</div></div>
+      <div class="stat warn${mNeed?' statclick':''}" ${mNeed?`onclick="reviewNoMonitor('')"`:''}><div class="lbl">⚠ No monitor assigned</div><div class="val sm">${mNeed}</div></div>
+    </div>
+    <div class="tbl-scroll"><table class="mon-tbl"><thead><tr><th>Site</th><th style="text-align:right">Active employees</th><th style="text-align:right">With monitor</th><th style="text-align:right">No monitor</th><th style="width:34%">Coverage</th></tr></thead><tbody>
+    ${mc.map(x=>{const n=x.total-x.withMon,pct=x.total?Math.round(x.withMon/x.total*100):0;
+      return `<tr><td><b>${esc(x.site)}</b></td><td style="text-align:right">${x.total}</td><td style="text-align:right">${x.withMon}</td>
+      <td style="text-align:right">${n?`<a class="mon-need" onclick="reviewNoMonitor('${esc(x.site).replace(/'/g,"\\'")}')" title="Show people at this site without a monitor">${n}</a>`:'<span style="color:var(--faint)">0</span>'}</td>
+      <td><div class="mon-bar"><div class="mon-fill" style="width:${pct}%"></div></div><span class="mon-pct">${pct}%</span></td></tr>`;}).join('')}
+    <tr class="mon-total"><td><b>Total</b></td><td style="text-align:right"><b>${mTot}</b></td><td style="text-align:right"><b>${mWith}</b></td><td style="text-align:right"><b>${mNeed}</b></td><td><span class="mon-pct">${mTot?Math.round(mWith/mTot*100):0}% covered</span></td></tr>
+    </tbody></table></div>
+    <p style="font-size:11.5px;color:var(--faint);margin-top:10px">Counts active (not offboarded) employees with at least one device of type "Monitor" assigned. Click a number in "No monitor" to see who they are.</p>`;
+  }
+  h+=`</div></div>`;
   c.innerHTML=h;
   requestAnimationFrame(()=>document.querySelectorAll('.bar-fill').forEach(b=>b.style.width=b.dataset.w+'%'));
 }
@@ -726,7 +754,7 @@ function clearSerial(){aSerial='';renderAssets(document.getElementById('content'
 function dashDrill(what){
   // reset filters, then apply the one for the clicked card, then navigate
   aSearch='';aSerial='';aUnassigned=false;aFilt={type:'',status:'',site:''};resetSpec();
-  if(what==='people'){nav('employees');return;}
+  if(what==='people'){eSearch='';eSite='';eLogin='';eDevice='';nav('employees');return;}
   if(what==='inuse')aFilt.status='In Use';
   else if(what==='instock')aFilt.status='In Stock';
   else if(what==='unassigned')aUnassigned=true;
@@ -813,7 +841,17 @@ function statusPill(s){const m={'In Use':'inuse','In Stock':'instock','Under Rep
 function condPill(c){const m={'New':'new','Good':'good','Fair':'fair','Damaged':'damaged'};return `<span class="pill ${m[c]||'good'}">${esc(c)||'—'}</span>`;}
 
 /* ============ EMPLOYEES ============ */
-let eSearch='',eSort={k:'employeeId',dir:1},eSite='',eLogin='';
+let eSearch='',eSort={k:'employeeId',dir:1},eSite='',eLogin='',eDevice='';
+/* ---- Monitor coverage ---- */
+function isActiveEmp(e){return (e.status||'').toLowerCase()!=='offboarded';}
+function monitorCount(name){return assetsFor(name).filter(a=>(a.type||'').toLowerCase()==='monitor').length;}
+function monitorCoverage(siteFilter){
+  const by={};
+  state.employees.filter(isActiveEmp).forEach(e=>{const s=e.site||'No site';if(siteFilter&&s!==siteFilter)return;
+    if(!by[s])by[s]={site:s,total:0,withMon:0,without:[]};
+    by[s].total++;if(monitorCount(e.name)>0)by[s].withMon++;else by[s].without.push(e);});
+  return Object.values(by).sort((a,b)=>a.site.localeCompare(b.site));}
+function reviewNoMonitor(site){eSearch='';eLogin='';eDevice='noMonitor';eSite=(site&&site!=='No site')?site:'';nav('employees');}
 /* ---- Last login (manually recorded from TRMM) ---- */
 const MON={jan:1,feb:2,mar:3,apr:4,may:5,jun:6,jul:7,aug:8,sep:9,oct:10,nov:11,dec:12};
 function pad2(n){return String(n).padStart(2,'0');}
@@ -830,7 +868,7 @@ function loginPill(v){const n=loginDays(v);if(n===null)return '<span class="pill
   const cls=n<=7?'inuse':n<=30?'repair':'damaged';const lbl=n===0?'Today':n===1?'1 day ago':n+' days ago';return `<span class="pill ${cls}">${lbl}</span>`;}
 function hasLaptop(name){return assetsFor(name).some(a=>(a.type||'').toLowerCase()==='laptop');}
 function loginBucket(e){const n=loginDays(e.lastLogin);if(n===null)return 'none';return n>30?'30':n>7?'7':'ok';}
-function reviewLogin(which){eSearch='';eSite='';eLogin=which;nav('employees');}
+function reviewLogin(which){eSearch='';eSite='';eDevice='';eLogin=which;nav('employees');}
 function editLogin(name,back){if(!canEdit()){toast("View-only access — editing is restricted","err");return;}
   const e=state.employees.find(x=>x.name===name);if(!e)return;
   const nm=esc(name).replace(/'/g,"\\'");
@@ -861,7 +899,7 @@ function saveLogin(name,back,clear){if(!canEdit()){toast("View-only access — e
 }
 function renderEmps(c){
   const sites=['',...(state.config.sites||[])];
-  let h=`<div class="toolbar"><div class="search"><span class="ic">⌕</span><input id="empSearchInput" placeholder="Search name, role, email…" value="${esc(eSearch)}" oninput="eSearch=this.value;toggleClear('emp');drawEmpRows()"><button class="search-clear${eSearch?' show':''}" id="empSearchClear" title="Clear" onclick="clearSearch('emp')">✕</button></div><select class="filt" onchange="eSite=this.value;drawEmpRows()">${sites.map(s=>`<option ${s===eSite?'selected':''}>${s||'All sites'}</option>`).join('')}</select><select class="filt" onchange="eLogin=this.value;drawEmpRows()" title="Filter by last login (TRMM)">${[['','Any last login'],['stale7','No login > 7 days'],['stale30','No login > 30 days'],['none','Login not recorded'],['laptopNoLogin','Has laptop · no login > 7 days or not recorded'],['laptopStale','Has laptop · no login > 7 days'],['laptopNone','Has laptop · login not recorded']].map(([v,l])=>`<option value="${v}" ${v===eLogin?'selected':''}>${l}</option>`).join('')}</select></div>
+  let h=`<div class="toolbar"><div class="search"><span class="ic">⌕</span><input id="empSearchInput" placeholder="Search name, role, email…" value="${esc(eSearch)}" oninput="eSearch=this.value;toggleClear('emp');drawEmpRows()"><button class="search-clear${eSearch?' show':''}" id="empSearchClear" title="Clear" onclick="clearSearch('emp')">✕</button></div><select class="filt" onchange="eSite=this.value;drawEmpRows()">${sites.map(s=>`<option ${s===eSite?'selected':''}>${s||'All sites'}</option>`).join('')}</select><select class="filt" onchange="eLogin=this.value;drawEmpRows()" title="Filter by last login (TRMM)">${[['','Any last login'],['stale7','No login > 7 days'],['stale30','No login > 30 days'],['none','Login not recorded'],['laptopNoLogin','Has laptop · no login > 7 days or not recorded'],['laptopStale','Has laptop · no login > 7 days'],['laptopNone','Has laptop · login not recorded']].map(([v,l])=>`<option value="${v}" ${v===eLogin?'selected':''}>${l}</option>`).join('')}</select><select class="filt" onchange="eDevice=this.value;drawEmpRows()" title="Filter by assigned devices">${[['','Any devices'],['noMonitor','No monitor assigned'],['noLaptop','No laptop assigned']].map(([v,l])=>`<option value="${v}" ${v===eDevice?'selected':''}>${l}</option>`).join('')}</select></div>
   <div class="tbl-wrap"><div class="tbl-scroll"><table>
     <thead><tr>${the('employeeId','ID')}${the('name','Name')}${the('role','Role')}${the('email','Email')}${the('site','Site')}${the('lastLogin','Last login (TRMM)')}<th style="text-align:right">Actions</th></tr></thead>
     <tbody id="empBody"></tbody></table></div><div class="tbl-foot" id="empFoot"></div></div>`;
@@ -873,6 +911,8 @@ function drawEmpRows(){
   let r=state.employees.slice();const q=eSearch.trim().toLowerCase();
   if(q)r=r.filter(e=>[e.name,e.role,e.email,e.employeeId].some(v=>(v||'').toLowerCase().includes(q)));
   if(eSite)r=r.filter(e=>e.site===eSite);
+  if(eDevice==='noMonitor')r=r.filter(e=>isActiveEmp(e)&&monitorCount(e.name)===0);
+  if(eDevice==='noLaptop')r=r.filter(e=>isActiveEmp(e)&&!hasLaptop(e.name));
   if(eLogin){r=r.filter(e=>{const b=loginBucket(e);
     if(eLogin==='none')return b==='none';
     if(eLogin==='stale7')return b==='7'||b==='30';
@@ -1333,6 +1373,14 @@ function renderImport(c){
         <button class="btn btn-primary" onclick="generateLoginReport()">📄 Generate login activity report (Word)</button>
       </div>
     </div>
+    <div style="margin-top:14px;padding-top:14px;border-top:1px solid var(--border)">
+      <p style="color:var(--muted);font-size:13px;margin-bottom:10px">Monitor coverage per site: how many active employees have no monitor assigned (i.e. monitors needed), with the list of names.</p>
+      <div style="display:flex;gap:11px;flex-wrap:wrap;align-items:center">
+        <label style="font-size:13px;font-weight:600;color:var(--muted)">Site:</label>
+        <select id="monSite" class="filt"><option>All sites</option>${(state.config.sites||[]).map(s=>`<option>${esc(s)}</option>`).join('')}</select>
+        <button class="btn btn-primary" onclick="generateMonitorReport()">📄 Generate monitor coverage report (Word)</button>
+      </div>
+    </div>
   </div></div>
   <div class="panel"><div class="panel-h"><h3>Manage dropdown lists</h3></div><div class="panel-b">
     <p style="color:var(--muted);font-size:13px;margin-bottom:12px">Clean up the values that appear in the Type, Brand, Model, and Supplier dropdowns — useful for removing typos or bad entries.</p>
@@ -1379,6 +1427,42 @@ function generateWarrantyReport(){
   const url=URL.createObjectURL(blob);const a=document.createElement('a');
   a.href=url;a.download='Dedale-Expired-Warranty-Laptops-'+today+'.doc';a.click();URL.revokeObjectURL(url);
   toast('Expired-warranty report generated','ok');
+}
+function generateMonitorReport(siteArg){
+  const site=siteArg||document.getElementById('monSite').value;const all=site==='All sites';
+  const today=new Date().toISOString().slice(0,10);
+  const esc2=s=>String(s==null?'':s).replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
+  const mc=monitorCoverage(all?'':site);
+  if(!mc.length){toast('No active employees for this site','err');return;}
+  const tot=mc.reduce((a,x)=>a+x.total,0),wm=mc.reduce((a,x)=>a+x.withMon,0),need=tot-wm;
+  const sumRows=mc.map(x=>{const n=x.total-x.withMon;return `<tr><td>${esc2(x.site)}</td><td align="right">${x.total}</td><td align="right">${x.withMon}</td><td align="right" style="color:${n?'#c0392b':'#182029'};font-weight:bold">${n}</td><td align="right">${x.total?Math.round(x.withMon/x.total*100):0}%</td></tr>`;}).join('')
+    +(mc.length>1?`<tr style="background:#F2F5F4;font-weight:bold"><td>Total</td><td align="right">${tot}</td><td align="right">${wm}</td><td align="right" style="color:#c0392b">${need}</td><td align="right">${tot?Math.round(wm/tot*100):0}%</td></tr>`:'');
+  const lists=mc.filter(x=>x.without.length).map(x=>`
+    <h2 style="color:#1F3864;font-size:13pt;margin:18px 0 6px">${esc2(x.site)} — ${x.without.length} without a monitor</h2>
+    <table border="1" cellspacing="0" cellpadding="5" style="border-collapse:collapse;width:100%;font-size:10pt">
+      <thead><tr style="background:#F2F5F4"><th align="left">#</th><th align="left">Employee ID</th><th align="left">Name</th><th align="left">Role</th><th align="left">Has laptop</th></tr></thead>
+      <tbody>${x.without.sort((a,b)=>(a.name||'').localeCompare(b.name||'')).map((e,i)=>`<tr><td>${i+1}</td><td>${esc2(e.employeeId)}</td><td>${esc2(e.name)}</td><td>${esc2(e.role)}</td><td>${hasLaptop(e.name)?'Yes':'No'}</td></tr>`).join('')}</tbody>
+    </table>`).join('');
+  const html=`<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" xmlns="http://www.w3.org/TR/REC-html40">
+<head><meta charset="utf-8"><title>Monitor Coverage Report</title></head>
+<body style="font-family:Calibri,Arial,sans-serif;color:#182029">
+  <h1 style="color:#1F3864;font-size:20pt;margin-bottom:2px">Monitor Coverage Report</h1>
+  <p style="color:#555;font-size:11pt;margin-top:0">Dedale Intelligence — IT Administration</p>
+  <p style="font-size:11pt"><b>Scope:</b> ${all?'All sites':esc2(site)} — active employees only&nbsp;&nbsp;|&nbsp;&nbsp;<b>Monitors needed:</b> ${need}&nbsp;&nbsp;|&nbsp;&nbsp;<b>Generated:</b> ${today}</p>
+  <hr>
+  <h2 style="color:#1F3864;font-size:13pt;margin:12px 0 6px">Summary by site</h2>
+  <table border="1" cellspacing="0" cellpadding="6" style="border-collapse:collapse;width:100%;font-size:10.5pt">
+    <thead><tr style="background:#F2F5F4"><th align="left">Site</th><th align="right">Active employees</th><th align="right">With monitor</th><th align="right">No monitor (needed)</th><th align="right">Coverage</th></tr></thead>
+    <tbody>${sumRows}</tbody>
+  </table>
+  ${need?lists:'<p><i>Every active employee in scope has at least one monitor assigned.</i></p>'}
+  <hr>
+  <p style="font-size:9pt;color:#888">Generated from the Dedale IT Asset Inventory system on ${today}. "Monitors needed" = active (not offboarded) employees with no device of type "Monitor" assigned. Employees with more than one monitor are counted once.</p>
+</body></html>`;
+  const blob=new Blob(['\ufeff'+html],{type:'application/msword'});
+  const url=URL.createObjectURL(blob);const a=document.createElement('a');
+  a.href=url;a.download='Dedale-Monitor-Coverage-'+(all?'All-Sites':site.replace(/\s+/g,'-'))+'-'+today+'.doc';a.click();URL.revokeObjectURL(url);
+  toast('Monitor coverage report generated ('+need+' monitors needed)','ok');
 }
 function generateLoginReport(daysArg,siteArg){
   const days=daysArg||parseInt(document.getElementById('loginDays').value,10);
