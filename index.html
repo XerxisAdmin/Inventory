@@ -947,12 +947,12 @@ function openAsset(id,preAssign,returnEmp){const rnd=Math.random().toString(36).
     <div class="modal-h"><h3>${id?'Edit asset':'Add asset'}</h3><button class="btn-ghost" onclick="closeModal()">✕</button></div>
     <div class="modal-b">
       <div class="row2">
-        <div class="field"><label>Type</label><div class="combo-wrap"><div class="combo"><input id="f_type" name="f_type_${rnd}" autocomplete="new-password" autocorrect="off" autocapitalize="off" spellcheck="false" value="${esc(a.type)}" placeholder="Pick or type a new type" oninput="comboFilter('type')" onfocus="comboOpenAll('type')" onblur="comboBlur('type')"><div class="combo-list" id="combo_type"></div></div><button type="button" class="new-btn" onclick="addNewValue('type')">+ New</button></div><span class="dd-hint">Pick from the list, type, or click + New</span></div>
-        <div class="field"><label>Brand</label><div class="combo-wrap"><div class="combo"><input id="f_brand" name="f_brand_${rnd}" autocomplete="new-password" autocorrect="off" autocapitalize="off" spellcheck="false" value="${esc(a.brand)}" placeholder="Pick or type a new brand" oninput="comboFilter('brand');syncModels()" onfocus="comboOpenAll('brand')" onblur="comboBlur('brand')"><div class="combo-list" id="combo_brand"></div></div><button type="button" class="new-btn" onclick="addNewValue('brand')">+ New</button></div><span class="dd-hint">Pick from the list, type, or click + New</span></div>
+        <div class="field"><label>Type</label><div class="combo-wrap"><div class="combo"><input id="f_type" name="f_type_${rnd}" autocomplete="off" data-bwignore="true" data-1p-ignore="true" data-lpignore="true" data-form-type="other" autocorrect="off" autocapitalize="off" spellcheck="false" value="${esc(a.type)}" placeholder="Pick or type a new type" oninput="comboFilter('type')" onfocus="comboOpenAll('type')" onblur="comboBlur('type')"><div class="combo-list" id="combo_type"></div></div><button type="button" class="new-btn" onclick="addNewValue('type')">+ New</button></div><span class="dd-hint">Pick from the list, type, or click + New</span></div>
+        <div class="field"><label>Brand</label><div class="combo-wrap"><div class="combo"><input id="f_brand" name="f_brand_${rnd}" autocomplete="off" data-bwignore="true" data-1p-ignore="true" data-lpignore="true" data-form-type="other" autocorrect="off" autocapitalize="off" spellcheck="false" value="${esc(a.brand)}" placeholder="Pick or type a new brand" oninput="comboFilter('brand');syncModels()" onfocus="comboOpenAll('brand')" onblur="comboBlur('brand')"><div class="combo-list" id="combo_brand"></div></div><button type="button" class="new-btn" onclick="addNewValue('brand')">+ New</button></div><span class="dd-hint">Pick from the list, type, or click + New</span></div>
       </div>
       <div class="row2">
-        <div class="field"><label>Model</label><div class="combo-wrap"><div class="combo"><input id="f_model" name="f_model_${rnd}" autocomplete="new-password" autocorrect="off" autocapitalize="off" spellcheck="false" value="${esc(a.model)}" placeholder="Pick or type a new model" oninput="comboFilter('model')" onfocus="comboOpenAll('model')" onblur="comboBlur('model')"><div class="combo-list" id="combo_model"></div></div><button type="button" class="new-btn" onclick="addNewValue('model')">+ New</button></div><span class="dd-hint">Pick from the list, type, or click + New</span></div>
-        <div class="field"><label>Serial (asset tag)</label><input id="f_serial" value="${esc(a.serial)}" placeholder="e.g. PF5E9CDC" oninput="this.value=this.value.toUpperCase()" style="text-transform:uppercase"></div>
+        <div class="field"><label>Model</label><div class="combo-wrap"><div class="combo"><input id="f_model" name="f_model_${rnd}" autocomplete="off" data-bwignore="true" data-1p-ignore="true" data-lpignore="true" data-form-type="other" autocorrect="off" autocapitalize="off" spellcheck="false" value="${esc(a.model)}" placeholder="Pick or type a new model" oninput="comboFilter('model')" onfocus="comboOpenAll('model')" onblur="comboBlur('model')"><div class="combo-list" id="combo_model"></div></div><button type="button" class="new-btn" onclick="addNewValue('model')">+ New</button></div><span class="dd-hint">Pick from the list, type, or click + New</span></div>
+        <div class="field"><label>Serial (asset tag)</label><input id="f_serial" autocomplete="off" data-bwignore="true" data-1p-ignore="true" data-lpignore="true" value="${esc(a.serial)}" placeholder="e.g. PF5E9CDC" oninput="this.value=this.value.toUpperCase()" style="text-transform:uppercase"></div>
       </div>
       <div class="row2">
         <div class="field"><label>Condition</label><select id="f_condition">${dd(CONDITIONS,a.condition)}</select></div>
@@ -964,16 +964,16 @@ function openAsset(id,preAssign,returnEmp){const rnd=Math.random().toString(36).
       </div>
       <div class="row2">
         <div class="field"><label>Warranty expiry <span style="font-weight:400;color:var(--faint)">(optional)</span></label><input id="f_warrantyExpiry" type="month" value="${esc((a.warrantyExpiry||'').slice(0,7))}"></div>
-        <div class="field"><label>Supplier <span style="font-weight:400;color:var(--faint)">(optional)</span></label><div class="combo"><input id="f_supplier" name="f_supplier_${rnd}" autocomplete="new-password" autocorrect="off" autocapitalize="off" spellcheck="false" value="${esc(a.supplier)}" placeholder="Pick or type a supplier" oninput="comboFilter('supplier')" onfocus="comboOpenAll('supplier')" onblur="comboBlur('supplier')"><div class="combo-list" id="combo_supplier"></div></div></div>
+        <div class="field"><label>Supplier <span style="font-weight:400;color:var(--faint)">(optional)</span></label><div class="combo"><input id="f_supplier" name="f_supplier_${rnd}" autocomplete="off" data-bwignore="true" data-1p-ignore="true" data-lpignore="true" data-form-type="other" autocorrect="off" autocapitalize="off" spellcheck="false" value="${esc(a.supplier)}" placeholder="Pick or type a supplier" oninput="comboFilter('supplier')" onfocus="comboOpenAll('supplier')" onblur="comboBlur('supplier')"><div class="combo-list" id="combo_supplier"></div></div></div>
       </div>
       <div class="spec-head">Specifications <span style="font-weight:400;color:var(--faint);font-size:11.5px">(optional — for laptops/PCs)</span></div>
       <div class="row2">
-        <div class="field"><label>CPU</label><input id="f_cpu" value="${esc(a.cpu||'')}" placeholder="e.g. Intel Core Ultra 7 255H, 16C/16T"></div>
-        <div class="field"><label>RAM</label><input id="f_ram" value="${esc(a.ram||'')}" placeholder="e.g. 32 GB"></div>
+        <div class="field"><label>CPU</label><input id="f_cpu" autocomplete="off" data-bwignore="true" data-1p-ignore="true" data-lpignore="true" value="${esc(a.cpu||'')}" placeholder="e.g. Intel Core Ultra 7 255H, 16C/16T"></div>
+        <div class="field"><label>RAM</label><input id="f_ram" autocomplete="off" data-bwignore="true" data-1p-ignore="true" data-lpignore="true" value="${esc(a.ram||'')}" placeholder="e.g. 32 GB"></div>
       </div>
       <div class="row2">
-        <div class="field"><label>Storage</label><input id="f_storage" value="${esc(a.storage||'')}" placeholder="e.g. 954 GB SSD"></div>
-        <div class="field"><label>GPU</label><input id="f_gpu" value="${esc(a.gpu||'')}" placeholder="e.g. Intel Arc 140T (15GB)"></div>
+        <div class="field"><label>Storage</label><input id="f_storage" autocomplete="off" data-bwignore="true" data-1p-ignore="true" data-lpignore="true" value="${esc(a.storage||'')}" placeholder="e.g. 954 GB SSD"></div>
+        <div class="field"><label>GPU</label><input id="f_gpu" autocomplete="off" data-bwignore="true" data-1p-ignore="true" data-lpignore="true" value="${esc(a.gpu||'')}" placeholder="e.g. Intel Arc 140T (15GB)"></div>
       </div>
       <div class="field"><label>Notes</label><textarea id="f_notes">${esc(a.notes)}</textarea></div>
     </div>
@@ -991,7 +991,7 @@ function addNewValue(which){
   // register into config immediately
   if(which==='type'){if(!state.config.types.includes(v)){state.config.types.push(v);state.config.types.sort();}}
   if(which==='brand'){const t=(document.getElementById('f_type').value||'').trim();if(!state.config.brands.includes(v)){state.config.brands.push(v);state.config.brands.sort();}state.config.brandsByType=state.config.brandsByType||{};state.config.brandsByType[t]=state.config.brandsByType[t]||[];if(!state.config.brandsByType[t].includes(v))state.config.brandsByType[t].push(v);}
-  if(which==='model'){const b=(document.getElementById('f_brand').value||'').trim();state.config.models[b]=state.config.models[b]||[];if(!state.config.models[b].includes(v)){state.config.models[b].push(v);state.config.models[b].sort();}}
+  if(which==='model'){const b=(document.getElementById('f_brand').value||'').trim();state.config.models[b]=state.config.models[b]||[];if(!state.config.models[b].includes(v)){state.config.models[b].push(v);state.config.models[b].sort();}regModelTB((document.getElementById('f_type')||{}).value,b,v);}
   saveState();
   document.getElementById('f_'+which).value=v;
   const box=document.getElementById('combo_'+which);if(box)box.classList.remove('open');
@@ -1010,8 +1010,19 @@ function comboSource(which){
   if(which==='model'){
     const b=((document.getElementById('f_brand')||{}).value||'').trim();
     if(!b)return [];
-    let list=new Set(state.config.models[b]||[]);
-    state.assets.filter(a=>a.brand===b&&a.model).forEach(a=>list.add(a.model));
+    const t=((document.getElementById('f_type')||{}).value||'').trim().toLowerCase();
+    const lc=x=>(x||'').trim().toLowerCase();
+    const list=new Set();
+    // models actually used by assets of this brand AND this type
+    state.assets.filter(a=>a.brand===b&&a.model&&(!t||lc(a.type)===t)).forEach(a=>list.add(a.model));
+    // models registered for this exact type+brand
+    (((state.config.modelsByTB||{})[t+'||'+b])||[]).forEach(m=>list.add(m));
+    // older brand-only list: keep a model only if it isn't known to belong to a different type
+    (state.config.models[b]||[]).forEach(m=>{
+      const types=new Set(state.assets.filter(a=>a.brand===b&&a.model===m).map(a=>lc(a.type)));
+      Object.keys(state.config.modelsByTB||{}).forEach(k=>{const [kt,kb]=k.split('||');if(kb===b&&(state.config.modelsByTB[k]||[]).includes(m))types.add(kt);});
+      if(!t||!types.size||types.has(t))list.add(m);
+    });
     return [...list].sort();
   }
   if(which==='supplier'){
@@ -1044,7 +1055,8 @@ function comboPick(which,val){
 }
 function comboBlur(which){setTimeout(()=>{const box=document.getElementById('combo_'+which);if(box)box.classList.remove('open');},150);}
 function syncModels(){/* model list is derived live from brand in comboSource; clear stale model dropdown */const box=document.getElementById('combo_model');if(box)box.classList.remove('open');}
-function addModel(){const b=document.getElementById('f_brand').value;const v=prompt('New model for '+b+':');if(!v)return;state.config.models[b]=state.config.models[b]||[];if(!state.config.models[b].includes(v))state.config.models[b].push(v);saveState();syncModels();document.getElementById('f_model').value=v;}
+function regModelTB(t,b,m){t=(t||'').trim().toLowerCase();if(!t||!b||!m)return;state.config.modelsByTB=state.config.modelsByTB||{};const k=t+'||'+b;state.config.modelsByTB[k]=state.config.modelsByTB[k]||[];if(!state.config.modelsByTB[k].includes(m)){state.config.modelsByTB[k].push(m);state.config.modelsByTB[k].sort();}}
+function addModel(){const b=document.getElementById('f_brand').value;const v=prompt('New model for '+b+':');if(!v)return;state.config.models[b]=state.config.models[b]||[];if(!state.config.models[b].includes(v))state.config.models[b].push(v);regModelTB((document.getElementById('f_type')||{}).value,b,v);saveState();syncModels();document.getElementById('f_model').value=v;}
 function addOpt(key,fid){const v=prompt('Add new '+key.slice(0,-1)+':');if(!v)return;if(!state.config[key].includes(v)){state.config[key].push(v);state.config[key].sort();saveState();}const sel=document.getElementById(fid);sel.innerHTML=state.config[key].map(o=>`<option ${o===v?'selected':''}>${esc(o)}</option>`).join('');}
 function saveAsset(id,returnEmp){if(!canEdit()){toast("View-only access — editing is restricted","err");return;}
   returnEmp=returnEmp||'';
@@ -1056,7 +1068,7 @@ function saveAsset(id,returnEmp){if(!canEdit()){toast("View-only access — edit
   if(rec.type&&!state.config.types.includes(rec.type)){state.config.types.push(rec.type);state.config.types.sort();}
   if(rec.brand&&!state.config.brands.includes(rec.brand)){state.config.brands.push(rec.brand);state.config.brands.sort();}
   if(rec.type&&rec.brand){state.config.brandsByType=state.config.brandsByType||{};state.config.brandsByType[rec.type]=state.config.brandsByType[rec.type]||[];if(!state.config.brandsByType[rec.type].includes(rec.brand))state.config.brandsByType[rec.type].push(rec.brand);}
-  if(rec.brand&&rec.model){state.config.models[rec.brand]=state.config.models[rec.brand]||[];if(!state.config.models[rec.brand].includes(rec.model)){state.config.models[rec.brand].push(rec.model);state.config.models[rec.brand].sort();}}
+  if(rec.brand&&rec.model){state.config.models[rec.brand]=state.config.models[rec.brand]||[];if(!state.config.models[rec.brand].includes(rec.model)){state.config.models[rec.brand].push(rec.model);state.config.models[rec.brand].sort();}regModelTB(rec.type,rec.brand,rec.model);}
   if(rec.supplier){state.config.suppliers=state.config.suppliers||[];if(!state.config.suppliers.includes(rec.supplier)){state.config.suppliers.push(rec.supplier);state.config.suppliers.sort();}}
   if(id){
     const existing=state.assets.find(x=>x.id===id);
@@ -1160,7 +1172,7 @@ function reassignAsset(id){
     <div class="modal-b">
       <p style="font-size:13px;color:var(--muted);margin-bottom:12px">${esc(a.type)} ${esc(a.brand)} ${esc(a.model)} ${a.serial?'('+esc(a.serial)+')':''}<br>Currently: <b>${esc(cur)}</b></p>
       <div class="field"><label>Move this device to</label>
-        <div class="combo"><input id="reassignPick" autocomplete="new-password" placeholder="Pick a person…" oninput="filterReassign()" onfocus="showReassign()"><div class="combo-list open" id="reassignList">${listHtml}</div></div>
+        <div class="combo"><input id="reassignPick" autocomplete="off" data-bwignore="true" data-1p-ignore="true" data-lpignore="true" data-form-type="other" placeholder="Pick a person…" oninput="filterReassign()" onfocus="showReassign()"><div class="combo-list open" id="reassignList">${listHtml}</div></div>
       </div>
       <p style="font-size:11.5px;color:var(--faint)">This moves the same device — no duplicate is created.</p>
     </div>
@@ -1600,7 +1612,7 @@ function deleteListValue(which,v){
   if(which==='type')state.config.types=(state.config.types||[]).filter(x=>x!==v);
   else if(which==='brand'){state.config.brands=(state.config.brands||[]).filter(x=>x!==v);if(state.config.brandsByType){Object.keys(state.config.brandsByType).forEach(t=>{state.config.brandsByType[t]=state.config.brandsByType[t].filter(x=>x!==v);});}delete (state.config.models||{})[v];}
   else if(which==='supplier')state.config.suppliers=(state.config.suppliers||[]).filter(x=>x!==v);
-  else if(which==='model'){const parts=v.split(' — ');const b=parts[0],mod=parts.slice(1).join(' — ');if(state.config.models&&state.config.models[b])state.config.models[b]=state.config.models[b].filter(x=>x!==mod);}
+  else if(which==='model'){const parts=v.split(' — ');const b=parts[0],mod=parts.slice(1).join(' — ');if(state.config.models&&state.config.models[b])state.config.models[b]=state.config.models[b].filter(x=>x!==mod);if(state.config.modelsByTB)Object.keys(state.config.modelsByTB).forEach(k=>{if(k.split('||')[1]===b)state.config.modelsByTB[k]=state.config.modelsByTB[k].filter(x=>x!==mod);});}
   // clear the value from any assets that have it (this is what actually removes it from the dropdown)
   if(which==='type')state.assets.forEach(a=>{if(a.type===v)a.type='';});
   else if(which==='brand')state.assets.forEach(a=>{if(a.brand===v)a.brand='';});
