@@ -772,9 +772,9 @@ function renderAssets(c){
   if(aWarranty){h+=`<div style="margin-bottom:14px"><span class="filt-note">⚠ Showing laptops with ${aWarranty==='expired'?'expired':'soon-to-expire'} warranty <button onclick="aWarranty='';renderAssets(document.getElementById('content'))">Clear</button></span></div>`;}
   h+=`<div class="toolbar">
     <div class="search"><span class="ic">⌕</span><input id="assetSearchInput" placeholder="Search serial, model, person…" value="${esc(aSearch)}" oninput="aSearch=this.value;toggleClear('asset');drawAssetRows()"><button class="search-clear${aSearch?' show':''}" id="assetSearchClear" title="Clear" onclick="clearSearch('asset')">✕</button></div>
-    <select class="filt" onchange="aFilt.type=this.value;drawAssetRows()">${types.map(t=>`<option ${t===aFilt.type?'selected':''}>${t||'All types'}</option>`).join('')}</select>
-    <select class="filt" onchange="aFilt.status=this.value;drawAssetRows()">${statuses.map(t=>`<option ${t===aFilt.status?'selected':''}>${t||'All statuses'}</option>`).join('')}</select>
-    <select class="filt" onchange="aFilt.site=this.value;drawAssetRows()">${sites.map(t=>`<option ${t===aFilt.site?'selected':''}>${t||'All sites'}</option>`).join('')}</select>
+    <select class="filt" onchange="aFilt.type=this.value;drawAssetRows()">${types.map(t=>`<option value="${esc(t)}" ${t===aFilt.type?'selected':''}>${t||'All types'}</option>`).join('')}</select>
+    <select class="filt" onchange="aFilt.status=this.value;drawAssetRows()">${statuses.map(t=>`<option value="${esc(t)}" ${t===aFilt.status?'selected':''}>${t||'All statuses'}</option>`).join('')}</select>
+    <select class="filt" onchange="aFilt.site=this.value;drawAssetRows()">${sites.map(t=>`<option value="${esc(t)}" ${t===aFilt.site?'selected':''}>${t||'All sites'}</option>`).join('')}</select>
     <button class="btn spec-toggle${showSpecs?' on':''}" onclick="toggleSpecs()" title="Filter by CPU, RAM, storage or GPU">⚙ Specs${specActive()?' <span class="spec-dot"></span>':''}</button>
     ${showSpecs?`<div class="spec-row">
       <span class="spec-row-lbl">Filter by specs</span>
