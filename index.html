@@ -680,6 +680,37 @@ function renderDash(c){
     }
   }
   h+=`</div></div>`;
+
+  // Laptop specifications completeness panel
+  const allLaptops=A.filter(a=>a.type==='Laptop');
+  const missingSpecs=allLaptops.filter(a=>!((a.cpu||'').trim())||!((a.ram||'').trim())||!((a.storage||'').trim())||!((a.gpu||'').trim()));
+  const completeSpecs=allLaptops.length-missingSpecs.length;
+  h+=`<div class="panel"><div class="panel-h"><h3>Laptop specifications</h3></div><div class="panel-b">`;
+  if(!allLaptops.length){
+    h+=`<div class="empty" style="padding:20px"><b>No laptops recorded</b>Add a laptop to track its specifications.</div>`;
+  }else{
+    h+=`<div class="stat-grid" style="margin-bottom:16px">
+      <div class="stat warn statclick" onclick="reviewIncomplete()"><div class="lbl">⚠ Missing specifications</div><div class="val sm">${missingSpecs.length}</div></div>
+      <div class="stat"><div class="lbl">Complete specifications</div><div class="val sm">${completeSpecs}</div></div>
+      <div class="stat"><div class="lbl">Total laptops</div><div class="val sm">${allLaptops.length}</div></div>
+    </div>`;
+    if(missingSpecs.length){
+      h+=`<div style="font-size:12.5px;color:var(--muted);margin-bottom:6px">Laptops missing CPU, RAM, Storage, or GPU:</div>`;
+      missingSpecs.slice(0,8).forEach(a=>{
+        const miss=[];
+        if(!((a.cpu||'').trim()))miss.push('CPU');
+        if(!((a.ram||'').trim()))miss.push('RAM');
+        if(!((a.storage||'').trim()))miss.push('Storage');
+        if(!((a.gpu||'').trim()))miss.push('GPU');
+        h+=`<div class="flag-item" style="background:var(--red-bg);border-color:#eccc8a;cursor:pointer" onclick="viewAsset('${a.id}')"><span class="ic" style="color:var(--red)">⚠</span><div style="flex:1"><b>${esc(a.brand)} ${esc(a.model)} — ${esc(a.serial)||'no serial'}</b><p>Assigned to ${esc(a.assignedTo||'unassigned')} · ${esc(a.site)} · missing: ${miss.join(', ')}</p></div></div>`;
+      });
+      if(missingSpecs.length>8){
+        h+=`<div style="margin-top:10px;font-size:12.5px"><button class="btn btn-sm" onclick="reviewIncomplete()">View all ${missingSpecs.length} →</button></div>`;
+      }
+    }
+  }
+  h+=`</div></div>`;
+
   // Laptop login activity panel (last login recorded from TRMM)
   const lPool=E.filter(e=>(e.status||'').toLowerCase()!=='offboarded'&&hasLaptop(e.name));
   const lStale=lPool.filter(e=>{const n=loginDays(e.lastLogin);return n!==null&&n>7;}).sort((a,b)=>loginDays(b.lastLogin)-loginDays(a.lastLogin));
@@ -737,7 +768,7 @@ function bars(obj,total){
 }
 
 /* ============ ASSETS ============ */
-let aSearch='',aFilt={type:'',status:'',site:''},aSort={k:'type',dir:1},aSerial='',aUnassigned=false,aWarranty='';
+let aSearch='',aFilt={type:'',status:'',site:''},aSort={k:'type',dir:1},aSerial='',aUnassigned=false,aWarranty='',aIncomplete=false;
 let aSpec={ram:'',storage:'',cpu:'',gpu:''},aSpecOpen=false;
 function specActive(){return !!(aSpec.ram||aSpec.storage||aSpec.cpu||aSpec.gpu);}
 function resetSpec(){aSpec={ram:'',storage:'',cpu:'',gpu:''};aSpecOpen=false;}
@@ -748,12 +779,13 @@ function specOptions(field){const set=new Set();state.assets.forEach(a=>{const g
 function cpuOptions(){const set=new Set();state.assets.forEach(a=>{const c=(a.cpu||'').trim();if(c)set.add(c);});return [...set].sort();}
 function toggleSpecs(){aSpecOpen=!aSpecOpen;if(!aSpecOpen&&specActive()){aSpec={ram:'',storage:'',cpu:'',gpu:''};}renderAssets(document.getElementById('content'));}
 function clearSpecs(){aSpec={ram:'',storage:'',cpu:'',gpu:''};renderAssets(document.getElementById('content'));}
-function reviewSerial(s){resetSpec();aSerial=s;aSearch='';aFilt={type:'',status:'',site:''};aUnassigned=false;aWarranty='';nav('assets');}
-function reviewWarranty(which){resetSpec();aWarranty=which;aSerial='';aSearch='';aUnassigned=false;aFilt={type:'',status:'',site:''};nav('assets');}
+function reviewSerial(s){resetSpec();aSerial=s;aSearch='';aFilt={type:'',status:'',site:''};aUnassigned=false;aWarranty='';aIncomplete=false;nav('assets');}
+function reviewWarranty(which){resetSpec();aWarranty=which;aSerial='';aSearch='';aUnassigned=false;aFilt={type:'',status:'',site:''};aIncomplete=false;nav('assets');}
+function reviewIncomplete(){resetSpec();aIncomplete=true;aWarranty='';aSerial='';aSearch='';aUnassigned=false;aFilt={type:'Laptop',status:'',site:''};nav('assets');}
 function clearSerial(){aSerial='';renderAssets(document.getElementById('content'));}
 function dashDrill(what){
   // reset filters, then apply the one for the clicked card, then navigate
-  aSearch='';aSerial='';aUnassigned=false;aFilt={type:'',status:'',site:''};resetSpec();
+  aSearch='';aSerial='';aUnassigned=false;aFilt={type:'',status:'',site:''};resetSpec();aIncomplete=false;aWarranty='';
   if(what==='people'){eSearch='';eSite='';eLogin='';eDevice='';nav('employees');return;}
   if(what==='inuse')aFilt.status='In Use';
   else if(what==='instock')aFilt.status='In Stock';
@@ -770,6 +802,7 @@ function renderAssets(c){
   if(aSerial){h+=`<div style="margin-bottom:14px"><span class="filt-note">⚠ Showing flagged assets with serial ${esc(aSerial)} <button onclick="clearSerial()">Clear</button></span></div>`;}
   if(aUnassigned){h+=`<div style="margin-bottom:14px"><span class="filt-note">Showing unassigned assets only <button onclick="aUnassigned=false;renderAssets(document.getElementById('content'))">Clear</button></span></div>`;}
   if(aWarranty){h+=`<div style="margin-bottom:14px"><span class="filt-note">⚠ Showing laptops with ${aWarranty==='expired'?'expired':'soon-to-expire'} warranty <button onclick="aWarranty='';renderAssets(document.getElementById('content'))">Clear</button></span></div>`;}
+  if(aIncomplete){h+=`<div style="margin-bottom:14px"><span class="filt-note">⚠ Showing laptops with missing specifications (CPU, RAM, Storage, or GPU blank) — click a row to edit and fill in the missing details <button onclick="aIncomplete=false;renderAssets(document.getElementById('content'))">Clear</button></span></div>`;}
   h+=`<div class="toolbar">
     <div class="search"><span class="ic">⌕</span><input id="assetSearchInput" placeholder="Search serial, model, person…" value="${esc(aSearch)}" oninput="aSearch=this.value;toggleClear('asset');drawAssetRows()"><button class="search-clear${aSearch?' show':''}" id="assetSearchClear" title="Clear" onclick="clearSearch('asset')">✕</button></div>
     <select class="filt" onchange="aFilt.type=this.value;drawAssetRows()">${types.map(t=>`<option value="${esc(t)}" ${t===aFilt.type?'selected':''}>${t||'All types'}</option>`).join('')}</select>
@@ -816,6 +849,9 @@ function filteredAssets(){
     const soon=new Date();soon.setMonth(soon.getMonth()+3);const soonStr=soon.toISOString().slice(0,7);
     if(aWarranty==='expired')r=r.filter(a=>a.type==='Laptop'&&a.warrantyExpiry&&a.warrantyExpiry.slice(0,7)<todayStr);
     else if(aWarranty==='soon')r=r.filter(a=>a.type==='Laptop'&&a.warrantyExpiry&&a.warrantyExpiry.slice(0,7)>=todayStr&&a.warrantyExpiry.slice(0,7)<=soonStr);
+  }
+  if(aIncomplete){
+    r=r.filter(a=>a.type==='Laptop'&&(!((a.cpu||'').trim())||!((a.ram||'').trim())||!((a.storage||'').trim())||!((a.gpu||'').trim())));
   }
   r.sort((a,b)=>{const x=(a[aSort.k]||'').toLowerCase(),y=(b[aSort.k]||'').toLowerCase();return x<y?-aSort.dir:x>y?aSort.dir:0;});
   return r;
