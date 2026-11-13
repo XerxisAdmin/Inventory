@@ -789,6 +789,13 @@ function specOptions(field){const set=new Set();state.assets.forEach(a=>{const g
 function cpuOptions(){const set=new Set();state.assets.forEach(a=>{const c=(a.cpu||'').trim();if(c)set.add(c);});return [...set].sort();}
 function toggleSpecs(){aSpecOpen=!aSpecOpen;if(!aSpecOpen&&specActive()){aSpec={ram:'',storage:'',cpu:'',gpu:''};}renderAssets(document.getElementById('content'));}
 function clearSpecs(){aSpec={ram:'',storage:'',cpu:'',gpu:''};renderAssets(document.getElementById('content'));}
+function clearHiddenFilters(){
+  // Called when the user manually changes a dropdown — drop any dashboard-origin
+  // restrictions so "All X" actually shows everything matching the dropdowns.
+  const changed=aSerial||aUnassigned||aWarranty||aIncomplete;
+  aSerial='';aUnassigned=false;aWarranty='';aIncomplete=false;
+  if(changed){renderAssets(document.getElementById('content'));}else{drawAssetRows();}
+}
 function reviewSerial(s){resetSpec();aSerial=s;aSearch='';aFilt={type:'',status:'',site:''};aUnassigned=false;aWarranty='';aIncomplete=false;nav('assets');}
 function reviewWarranty(which){resetSpec();aWarranty=which;aSerial='';aSearch='';aUnassigned=false;aFilt={type:'',status:'',site:''};aIncomplete=false;nav('assets');}
 function reviewIncomplete(){resetSpec();aIncomplete=true;aWarranty='';aSerial='';aSearch='';aUnassigned=false;aFilt={type:'Laptop',status:'',site:''};nav('assets');}
@@ -815,9 +822,9 @@ function renderAssets(c){
   if(aIncomplete){h+=`<div style="margin-bottom:14px"><span class="filt-note">⚠ Showing laptops with missing specifications (CPU, RAM, Storage, or GPU blank) — click a row to edit and fill in the missing details <button onclick="aIncomplete=false;renderAssets(document.getElementById('content'))">Clear</button></span></div>`;}
   h+=`<div class="toolbar">
     <div class="search"><span class="ic">⌕</span><input id="assetSearchInput" placeholder="Search serial, model, person…" value="${esc(aSearch)}" oninput="aSearch=this.value;toggleClear('asset');drawAssetRows()"><button class="search-clear${aSearch?' show':''}" id="assetSearchClear" title="Clear" onclick="clearSearch('asset')">✕</button></div>
-    <select class="filt" onchange="aFilt.type=this.value;drawAssetRows()">${types.map(t=>`<option value="${esc(t)}" ${t===aFilt.type?'selected':''}>${t||'All types'}</option>`).join('')}</select>
-    <select class="filt" onchange="aFilt.status=this.value;drawAssetRows()">${statuses.map(t=>`<option value="${esc(t)}" ${t===aFilt.status?'selected':''}>${t||'All statuses'}</option>`).join('')}</select>
-    <select class="filt" onchange="aFilt.site=this.value;drawAssetRows()">${sites.map(t=>`<option value="${esc(t)}" ${t===aFilt.site?'selected':''}>${t||'All sites'}</option>`).join('')}</select>
+    <select class="filt" onchange="aFilt.type=this.value;clearHiddenFilters()">${types.map(t=>`<option value="${esc(t)}" ${t===aFilt.type?'selected':''}>${t||'All types'}</option>`).join('')}</select>
+    <select class="filt" onchange="aFilt.status=this.value;clearHiddenFilters()">${statuses.map(t=>`<option value="${esc(t)}" ${t===aFilt.status?'selected':''}>${t||'All statuses'}</option>`).join('')}</select>
+    <select class="filt" onchange="aFilt.site=this.value;clearHiddenFilters()">${sites.map(t=>`<option value="${esc(t)}" ${t===aFilt.site?'selected':''}>${t||'All sites'}</option>`).join('')}</select>
     <button class="btn spec-toggle${showSpecs?' on':''}" onclick="toggleSpecs()" title="Filter by CPU, RAM, storage or GPU">⚙ Specs${specActive()?' <span class="spec-dot"></span>':''}</button>
     ${showSpecs?`<div class="spec-row">
       <span class="spec-row-lbl">Filter by specs</span>
